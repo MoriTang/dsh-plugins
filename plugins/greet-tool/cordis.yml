@@ -1,0 +1,9 @@
+# Web overlay that inserts the local greet-tool plugin.
+
+# The plugin path must be absolute: a patch file contributes configuration but
+# does not change the profile directory from which the loader resolves paths.
+- insert:
+    - id: greet-tool
+      name: '/Users/mori/src/dsh/plugins/greet-tool/src/index.ts'
+      config:
+        greeting: 'Hello'
