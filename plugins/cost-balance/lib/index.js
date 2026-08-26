@@ -14530,6 +14530,7 @@ function date4(params) {
 config(en_default());
 
 // src/projection.ts
+var zeroBuckets = () => ({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 });
 var zeroState = (currency) => ({
   inputTokens: 0,
   outputTokens: 0,
@@ -14537,8 +14538,7 @@ var zeroState = (currency) => ({
   cacheWriteTokens: 0,
   cost: 0,
   currency,
-  lastTurn: -1,
-  lastStep: -1
+  last: null
 });
 function usageOf(event) {
   if (event.type === "assistant/chunk" && event.data.chunk.type === "usage") {
@@ -14549,8 +14549,11 @@ function usageOf(event) {
   }
   return void 0;
 }
+var bucketsEqual = (a, b) => a.input === b.input && a.output === b.output && a.cacheRead === b.cacheRead && a.cacheWrite === b.cacheWrite;
+function bucketCost(b, pricing) {
+  return b.input / 1e6 * pricing.inputPerM + b.cacheRead / 1e6 * pricing.cacheReadPerM + b.cacheWrite / 1e6 * pricing.cacheWritePerM + b.output / 1e6 * pricing.outputPerM;
+}
 function costBalanceDefinition(pricing, currency) {
-  const costOf = (usage) => usage.inputTokens / 1e6 * pricing.inputPerM + (usage.cacheReadTokens ?? 0) / 1e6 * pricing.cacheReadPerM + (usage.cacheWriteTokens ?? 0) / 1e6 * pricing.cacheWritePerM + usage.outputTokens / 1e6 * pricing.outputPerM;
   const viewSchema = external_exports.object({
     inputTokens: external_exports.number().nonnegative(),
     outputTokens: external_exports.number().nonnegative(),
@@ -14560,30 +14563,50 @@ function costBalanceDefinition(pricing, currency) {
     currency: external_exports.string()
   }).strict();
   const stateSchema = viewSchema.extend({
-    lastTurn: external_exports.number().int(),
-    lastStep: external_exports.number().int()
+    last: external_exports.object({
+      turn: external_exports.number().int().nonnegative(),
+      step: external_exports.number().int().nonnegative(),
+      buckets: external_exports.object({
+        input: external_exports.number().nonnegative(),
+        output: external_exports.number().nonnegative(),
+        cacheRead: external_exports.number().nonnegative(),
+        cacheWrite: external_exports.number().nonnegative()
+      }).strict()
+    }).nullable()
   }).strict();
   const definition = {
     key: "costBalance",
-    stateVersion: 1,
+    stateVersion: 2,
     stateSchema,
     init: () => zeroState(currency),
     apply: (state, event) => {
       const sample = usageOf(event);
       if (sample === void 0) return state;
-      if (sample.turn === state.lastTurn && sample.step === state.lastStep) {
-        return { ...state, lastTurn: sample.turn, lastStep: sample.step };
-      }
-      const usage = sample.usage;
+      const buckets = {
+        input: sample.usage.inputTokens ?? 0,
+        output: sample.usage.outputTokens ?? 0,
+        cacheRead: sample.usage.cacheReadTokens ?? 0,
+        cacheWrite: sample.usage.cacheWriteTokens ?? 0
+      };
+      const sameStep = state.last !== null && state.last.turn === sample.turn && state.last.step === sample.step;
+      if (sameStep && bucketsEqual(state.last.buckets, buckets)) return state;
+      const previous = sameStep ? state.last.buckets : zeroBuckets();
+      const inputTokens = state.inputTokens - previous.input + buckets.input;
+      const outputTokens = state.outputTokens - previous.output + buckets.output;
+      const cacheReadTokens = state.cacheReadTokens - previous.cacheRead + buckets.cacheRead;
+      const cacheWriteTokens = state.cacheWriteTokens - previous.cacheWrite + buckets.cacheWrite;
+      const cost = bucketCost(
+        { input: inputTokens, output: outputTokens, cacheRead: cacheReadTokens, cacheWrite: cacheWriteTokens },
+        pricing
+      );
       return {
-        inputTokens: state.inputTokens + usage.inputTokens,
-        outputTokens: state.outputTokens + usage.outputTokens,
-        cacheReadTokens: state.cacheReadTokens + (usage.cacheReadTokens ?? 0),
-        cacheWriteTokens: state.cacheWriteTokens + (usage.cacheWriteTokens ?? 0),
-        cost: state.cost + costOf(usage),
+        inputTokens,
+        outputTokens,
+        cacheReadTokens,
+        cacheWriteTokens,
+        cost,
         currency,
-        lastTurn: sample.turn,
-        lastStep: sample.step
+        last: { turn: sample.turn, step: sample.step, buckets }
       };
     },
     wire: {

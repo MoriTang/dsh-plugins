@@ -9,7 +9,7 @@ import type { ProjectionDefinition } from '@deepseek-ai/dsh-session-projection'
  * estimated spend in the configured currency.
  */
 export interface CostBalanceView {
-  /** Cumulative billed input tokens (uncached + cache-read + cache-write). */
+  /** Cumulative uncached (cache-miss) input tokens. */
   inputTokens: number
   /** Cumulative output tokens. */
   outputTokens: number
@@ -17,17 +17,31 @@ export interface CostBalanceView {
   cacheReadTokens: number
   /** Cumulative cache-write tokens. */
   cacheWriteTokens: number
-  /** Cumulative estimated spend, in the configured currency unit. */
+  /** Cumulative estimated spend, derived from the token buckets and pricing. */
   cost: number
   /** Currency symbol/unit the prices are expressed in. */
   currency: string
 }
 
-/** Fold state: the durable per-session buckets plus the running cost total. */
+/** Disjoint token buckets from one usage sample. */
+interface Buckets {
+  input: number
+  output: number
+  cacheRead: number
+  cacheWrite: number
+}
+
+const zeroBuckets = (): Buckets => ({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 })
+
+/** Fold state: the durable per-session buckets plus the last step's sample. */
 export interface CostBalanceState extends CostBalanceView {
-  /** Last usage's turn/step so a repeated sample replaces instead of double-counts. */
-  lastTurn: number
-  lastStep: number
+  /**
+   * The most recent usage sample's (turn, step) and its exact buckets. A
+   * repeated sample for the SAME step (a stream usage chunk followed by the
+   * final assistant/message usage) REPLACES that step's earlier contribution
+   * instead of double-counting — the same invariant token-meter relies on.
+   */
+  last: { turn: number; step: number; buckets: Buckets } | null
 }
 
 const zeroState = (currency: string): CostBalanceState => ({
@@ -37,8 +51,7 @@ const zeroState = (currency: string): CostBalanceState => ({
   cacheWriteTokens: 0,
   cost: 0,
   currency,
-  lastTurn: -1,
-  lastStep: -1,
+  last: null,
 })
 
 /** Extract provider usage from a session event, if any (mirrors token-meter). */
@@ -60,19 +73,23 @@ export interface Pricing {
   cacheWritePerM: number
 }
 
+const bucketsEqual = (a: Buckets, b: Buckets): boolean =>
+  a.input === b.input && a.output === b.output && a.cacheRead === b.cacheRead && a.cacheWrite === b.cacheWrite
+
+/** Cost of one bucket set under the configured pricing. */
+function bucketCost(b: Buckets, pricing: Pricing): number {
+  return b.input / 1e6 * pricing.inputPerM
+    + b.cacheRead / 1e6 * pricing.cacheReadPerM
+    + b.cacheWrite / 1e6 * pricing.cacheWritePerM
+    + b.output / 1e6 * pricing.outputPerM
+}
+
 /**
  * Build the session projection definition for one pricing snapshot. Prices
  * are captured at registration; a config hot-reload unloads and re-registers
  * the plugin, so the fold restarts from the durable log with new prices.
  */
 export function costBalanceDefinition(pricing: Pricing, currency: string) {
-  const costOf = (usage: TokenUsage): number => (
-    usage.inputTokens / 1e6 * pricing.inputPerM
-    + (usage.cacheReadTokens ?? 0) / 1e6 * pricing.cacheReadPerM
-    + (usage.cacheWriteTokens ?? 0) / 1e6 * pricing.cacheWritePerM
-    + usage.outputTokens / 1e6 * pricing.outputPerM
-  )
-
   const viewSchema = z.object({
     inputTokens: z.number().nonnegative(),
     outputTokens: z.number().nonnegative(),
@@ -83,33 +100,61 @@ export function costBalanceDefinition(pricing: Pricing, currency: string) {
   }).strict()
 
   const stateSchema = viewSchema.extend({
-    lastTurn: z.number().int(),
-    lastStep: z.number().int(),
+    last: z.object({
+      turn: z.number().int().nonnegative(),
+      step: z.number().int().nonnegative(),
+      buckets: z.object({
+        input: z.number().nonnegative(),
+        output: z.number().nonnegative(),
+        cacheRead: z.number().nonnegative(),
+        cacheWrite: z.number().nonnegative(),
+      }).strict(),
+    }).nullable(),
   }).strict()
 
   const definition = {
     key: 'costBalance',
-    stateVersion: 1,
+    stateVersion: 2,
     stateSchema,
     init: () => zeroState(currency),
     apply: (state: CostBalanceState, event: SessionEvent): CostBalanceState => {
       const sample = usageOf(event)
       if (sample === undefined) return state
-      // A repeated sample for the same step replaces that step's earlier
-      // value instead of double-counting (the same invariant token-meter relies on).
-      if (sample.turn === state.lastTurn && sample.step === state.lastStep) {
-        return { ...state, lastTurn: sample.turn, lastStep: sample.step }
+
+      const buckets: Buckets = {
+        input: sample.usage.inputTokens ?? 0,
+        output: sample.usage.outputTokens ?? 0,
+        cacheRead: sample.usage.cacheReadTokens ?? 0,
+        cacheWrite: sample.usage.cacheWriteTokens ?? 0,
       }
-      const usage = sample.usage
+      const sameStep = state.last !== null
+        && state.last.turn === sample.turn
+        && state.last.step === sample.step
+      // Identical repeated sample (e.g. replay of the same event): no change.
+      if (sameStep && bucketsEqual(state.last!.buckets, buckets)) return state
+
+      // The final assistant/message usage REPLACES the stream chunk's earlier
+      // sample for the same step: subtract the previous buckets, add the new.
+      const previous = sameStep ? state.last!.buckets : zeroBuckets()
+      const inputTokens = state.inputTokens - previous.input + buckets.input
+      const outputTokens = state.outputTokens - previous.output + buckets.output
+      const cacheReadTokens = state.cacheReadTokens - previous.cacheRead + buckets.cacheRead
+      const cacheWriteTokens = state.cacheWriteTokens - previous.cacheWrite + buckets.cacheWrite
+      // Cost is derived from the fresh buckets, never accumulated, so a
+      // replacement cannot drift from floating-point add/subtract.
+      const cost = bucketCost(
+        { input: inputTokens, output: outputTokens, cacheRead: cacheReadTokens, cacheWrite: cacheWriteTokens },
+        pricing,
+      )
+
       return {
-        inputTokens: state.inputTokens + usage.inputTokens,
-        outputTokens: state.outputTokens + usage.outputTokens,
-        cacheReadTokens: state.cacheReadTokens + (usage.cacheReadTokens ?? 0),
-        cacheWriteTokens: state.cacheWriteTokens + (usage.cacheWriteTokens ?? 0),
-        cost: state.cost + costOf(usage),
+        inputTokens,
+        outputTokens,
+        cacheReadTokens,
+        cacheWriteTokens,
+        cost,
         currency,
-        lastTurn: sample.turn,
-        lastStep: sample.step,
+        last: { turn: sample.turn, step: sample.step, buckets },
       }
     },
     wire: {
