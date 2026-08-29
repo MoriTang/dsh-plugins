@@ -17,15 +17,60 @@
 ```
 dsh-plugins/
 ├── plugins/
-│   └── greet-tool/        # 示例插件：可配置的 greet 工具（新插件的起点模板）
+│   ├── greet-tool/        # 示例插件：可配置的 greet 工具（新插件的起点模板）
+│   ├── cost-balance/      # 会话消耗金额 + 账户余额实时显示（composer dock）
+│   ├── usage-heatmap/     # 设置页：GitHub 风格每日 token 消耗热力图
+│   └── codex-enabler/     # 一键 Codex subagent 接入
 └── README.md
 ```
 
-## 插件列表
+## 插件索引
 
-| 插件 | 说明 | 状态 |
-|---|---|---|
-| `greet-tool` | 注册一个 `greet` 工具，通过 `Config` 配置问候语 | 可用 |
+### `greet-tool` — 示例工具插件
+
+- **类型**：host-only · 工具
+- **功能**：注册一个 `greet` 工具，通过 `Config` 配置问候语。
+- **说明**：最小的完整插件范例，是开发新插件时的起点模板。
+- **安装**：patch 层插入行（见[快速开始](#快速开始)），`pnpm install` + 类型检查即可用。
+- **文档**：[`plugins/greet-tool/README.md`](plugins/greet-tool/README.md)
+
+### `cost-balance` — 会话消耗与余额
+
+- **类型**：双半插件（host + client）
+- **功能**：
+  - **会话消耗金额**：监听每次 LLM 请求的 usage 事件，按配置单价折成金额，实时累计
+  - **账户余额**：周期调用 DeepSeek `GET /user/balance`，显示在输入框下方
+- **UI**：`conversation.composer.dock` 插槽，常驻读条
+  （`cost ¥0.0012 · 12.3K in · 4.5K out · balance ¥438.76`）
+- **数据通道**：消耗金额走 session projection（host 纯事件折叠 → `useProjection`），
+  余额走 `/cost-balance/balance` 路由（client 轮询）。
+- **文档**：[`plugins/cost-balance/README.md`](plugins/cost-balance/README.md)
+
+### `usage-heatmap` — 每日 token 热力图
+
+- **类型**：双半插件（host + client）
+- **功能**：
+  - **GitHub 风格热力图**：设置菜单「Usage」页，最近一年每日 token 消耗，
+    越浅越亮 = 越多（绿色系渐变），hover 显示按模型（v4-pro/v4-flash）分桶
+  - **汇总卡片**：Total balance、全周期 Token 总量
+- **数据通道**：host 监听 `session/event` 按天聚合 + 按 `request/header` 归模型，
+  启动时从持久化 session 日志回填历史；client 经 `/usage-heatmap/history` 轮询。
+- **持久化**：`$DSH_HOME/usage-heatmap/daily-usage.json`（原子写入）。
+- **文档**：[`plugins/usage-heatmap/README.md`](plugins/usage-heatmap/README.md)
+
+### `codex-enabler` — 一键 Codex 接入
+
+- **类型**：bundle（安装脚本 + 配置层）
+- **功能**：一条命令完成 Codex subagent 接入——注册 provider、
+  装 `@openai/codex` 运行时、启用模型可见的 `subagent_codex` 工具。
+- **安装**：
+
+  ```sh
+  node plugins/codex-enabler/install.mjs web
+  ```
+
+- **前置**：本机 Codex 已登录（`~/.codex/auth.json`）。
+- **文档**：[`plugins/codex-enabler/README.md`](plugins/codex-enabler/README.md)
 
 ## 快速开始
 
@@ -97,5 +142,7 @@ pnpm exec tsc --noEmit
   `cordis.patch.yml` 的配置层编辑是热重载的。
 - **GUI 无法开关插件**：Web UI 的 Plugins 设置页只渲染已注册插件的配置卡片，
   没有运行时启用/停用操作。
-- 插件 `name` 必须是**绝对路径**（patch 层不改变模块解析基准目录），换机器
-  后需要相应调整。
+- **加载方式分两类**：源码插件（`greet-tool`、`cost-balance`、`usage-heatmap`）
+  的 `name` 在 patch 层必须是**绝对路径**（patch 不改变模块解析基准目录），
+  换机器需调整；bundle 插件（`codex-enabler`）以**包名**挂载，
+  通过 `dsh plugin add` 安装、`cordis.patch.yml` 覆盖配置。
