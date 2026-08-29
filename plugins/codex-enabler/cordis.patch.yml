@@ -1,0 +1,28 @@
+# One-command Codex integration bundle.
+#
+# Installing this package (dsh plugin --profile <name> add <path>) activates
+# the Codex subagent provider AND the model-facing tool in one step:
+#
+#   1. provider row: registers the official @deepseek-ai/dsh-subagent-codex
+#      provider as `codex` (non-interactive, native sandbox);
+#   2. tool row: re-enables the web-app-disabled `tool-subagent` and points it
+#      at the Codex provider as `subagent_codex`, so the model can delegate
+#      tasks to Codex.
+#
+# The bundle's package.json also brings @openai/codex (the official wrapper +
+# native platform payload) as a dependency, so a single `dsh plugin add`
+# installs the whole runtime — no separate pnpm step.
+- insert:
+    - id: codex-provider
+      name: '@deepseek-ai/dsh-subagent-codex'
+      config:
+        providerName: codex
+        permissionMode: never
+
+- id: tool-subagent
+  disabled: false
+  config:
+    provider: codex
+    toolName: subagent_codex
+    backgroundMode: one-shot
+    maxDepth: provider-managed
