@@ -34,7 +34,10 @@ function runPnpm(args) {
   const result = spawnSync('pnpm', args, {
     cwd: harness,
     stdio: 'inherit',
-    shell: false,
+    // Windows resolves pnpm through its .cmd shim, which spawn() refuses
+    // without a shell since the CVE-2024-27980 hardening (same as harness
+    // apps/cli/src/plugin.ts).
+    shell: process.platform === 'win32',
   })
   if (result.error !== undefined) throw result.error
   if (result.status !== 0) {
