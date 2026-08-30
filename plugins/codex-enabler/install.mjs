@@ -5,7 +5,7 @@
  * Usage: node install.mjs [profile] [harness-checkout] [preset-id]
  */
 
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -49,9 +49,30 @@ const providerBundle = join(harness, 'packages/subagent/subagent-codex')
 const sourcePreset = join(harness, 'packages/preset/agent-presets/presets/standard')
 const targetPreset = join(resolveDshHome(), '.agent-presets', presetId)
 
+/** Read the profile's registered bundle names from its package.json manifest. */
+function registeredBundles(profileName) {
+  const manifestPath = join(resolveDshHome(), 'profiles', profileName, 'package.json')
+  if (!existsSync(manifestPath)) return []
+  try {
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+    return manifest?.dsh?.profile?.bundles ?? []
+  } catch {
+    return []
+  }
+}
+
 console.log(`Installing Codex integration for profile ${JSON.stringify(profile)}`)
-runPnpm(['dsh', 'plugin', '--profile', profile, 'add', providerBundle])
-runPnpm(['dsh', 'plugin', '--profile', profile, 'add', here])
+const registered = registeredBundles(profile)
+const missingBundles = []
+if (!registered.includes('@deepseek-ai/dsh-subagent-codex')) missingBundles.push(providerBundle)
+if (!registered.includes('dsh-codex-enabler')) missingBundles.push(here)
+if (missingBundles.length === 0) {
+  console.log('Bundles already registered in the profile; skipping plugin add')
+} else {
+  for (const bundle of missingBundles) {
+    runPnpm(['dsh', 'plugin', '--profile', profile, 'add', bundle])
+  }
+}
 
 const preset = createCodexPreset({
   sourceDir: sourcePreset,
