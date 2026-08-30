@@ -58,18 +58,20 @@ dsh-plugins/
 - **持久化**：`$DSH_HOME/usage-heatmap/daily-usage.json`（原子写入）。
 - **文档**：[`plugins/usage-heatmap/README.md`](plugins/usage-heatmap/README.md)
 
-### `codex-enabler` — 一键 Codex 接入
+### `codex-enabler` — Codex Provider 与专用 preset 接入
 
 - **类型**：bundle（安装脚本 + 配置层）
-- **功能**：一条命令完成 Codex subagent 接入——注册 provider、
-  装 `@openai/codex` 运行时、启用模型可见的 `subagent_codex` 工具。
+- **功能**：安装官方 Codex Provider、配置 Host 行，并复制出只对所选会话
+  授权 `subagent_codex` 的 `standard-codex` agent preset。官方 Provider
+  包持有匹配的 `@openai/codex` 版本，不再安装第二份运行时。
 - **安装**：
 
   ```sh
   node plugins/codex-enabler/install.mjs web
   ```
 
-- **前置**：本机 Codex 已登录（`~/.codex/auth.json`）。
+- **使用**：重启 profile 后，为新会话选择 `standard-codex`；既有会话的
+  preset 与工具集不变。
 - **文档**：[`plugins/codex-enabler/README.md`](plugins/codex-enabler/README.md)
 
 ## 快速开始
@@ -138,8 +140,8 @@ pnpm exec tsc --noEmit
 ## 已知限制
 
 - **web 下修改插件源码不会热重载**：web profile 禁用了模块级 HMR（`hmr` 行
-  `disabled: true`），改 `src/index.ts` 后需重启 `dsh web`；只有
-  `cordis.patch.yml` 的配置层编辑是热重载的。
+  `disabled: true`），改 `src/index.ts` 后需重启 `dsh web`。profile 或
+  Harness home 的用户 patch 会热重载；已安装 bundle 自带的 patch 修改后需重启。
 - **GUI 无法开关插件**：Web UI 的 Plugins 设置页只渲染已注册插件的配置卡片，
   没有运行时启用/停用操作。
 - **加载方式分两类**：源码插件（`greet-tool`、`cost-balance`、`usage-heatmap`）

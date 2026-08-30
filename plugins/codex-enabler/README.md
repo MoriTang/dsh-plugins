@@ -1,73 +1,88 @@
 # codex-enabler
 
-DeepSeek Harness 的**一键 Codex 接入** bundle：运行一个安装脚本，即完成
-Codex subagent 提供方注册、`@openai/codex` 运行时依赖、以及模型可见的
-`subagent_codex` 工具启用。
+`codex-enabler` installs the official DeepSeek Harness Codex Provider and
+creates a separate agent preset that grants the model-facing
+`subagent_codex` tool. The Provider remains a Host capability; only sessions
+created with the generated preset receive the tool.
 
-## 一键接入
+## Install
 
 ```sh
 node /Users/mori/src/dsh/plugins/codex-enabler/install.mjs web
 ```
 
-（`web` 是 profile 名，可换成你自己的。默认假设 harness checkout 在
-`../../../deepseek-harness`，也可作为第二个参数传入。）
+Arguments are `[profile] [harness-checkout] [preset-id]`. They default to
+`web`, `../../../deepseek-harness` relative to this directory, and
+`standard-codex`.
 
-安装后**重启 profile**，Codex 即接入完成。模型在对话中即可调用
-`subagent_codex` 工具委派任务。
+The installer:
 
-## 它做了什么（install.mjs 自动完成）
+1. adds the official `@deepseek-ai/dsh-subagent-codex` Profile Bundle;
+2. adds this companion Bundle after it;
+3. copies the shipped `standard` preset to
+   `<dshHome>/.agent-presets/standard-codex`;
+4. enables only `tool-subagent-codex` in the copy.
 
-| 步骤 | 手动方式 | 一键脚本 |
-|---|---|---|
-| 注册 Codex provider | 手动装 `@deepseek-ai/dsh-subagent-codex` | ✅ 自动 |
-| 装 `@openai/codex` 运行时 | 手动 `pnpm add @openai/codex` | ✅ 自动 |
-| 配置 provider（never 模式） | 手动 patch config | ✅ bundle patch 自动 |
-| 启用模型工具 `subagent_codex` | 手动覆盖 `tool-subagent` 行 | ✅ bundle patch 自动 |
+The official Provider package owns its compatible `@openai/codex` version and
+native payload. This installer does not install a second Codex runtime version.
+It resolves `<dshHome>` from `DSH_HOME` when set, otherwise from `~/.dsh`.
 
-## 为什么需要三步（而不是一个包）
+The installer never overwrites an existing preset. Re-running it leaves an
+already enabled target unchanged; an incompatible existing target fails with
+its path.
 
-pnpm 的 `link:` 语义决定了「一个包自动带入全部依赖」做不到：
+Restart the profile after installation, then select `standard-codex` when
+creating a session. Existing sessions keep the preset and tool set they started
+with.
 
-- `@deepseek-ai/dsh-subagent-codex` 声明了 `workspace:*` 依赖，**只能以
-  `link:` 形式存在**（依赖在 harness checkout 里解析）
-- `link:` 不递归安装目标的 dependencies，所以 `@openai/codex`（registry 包）
-  **必须显式装进 profile**
-- `dsh plugin add` 一次只处理一个包
+## Composition
 
-因此 `install.mjs` 顺序执行三条命令完成接入；本 bundle 的 `dsh.bundle`
-patch 层负责 provider 配置和 tool 启用，安装后自动生效。
+| Layer | Responsibility |
+|---|---|
+| Official `subagent-codex` Bundle | Registers the `codex` Provider once on the Host |
+| This Bundle | Configures that existing Host row with `permissionMode: never` |
+| `standard-codex` agent preset | Grants `subagent_codex` only to sessions using that preset |
 
-## 前置条件
+The call path is:
 
-- 本机 Codex 已登录（`~/.codex/auth.json`）
-- 本机有 harness checkout（默认 `../../../deepseek-harness`）
-
-## 工作原理
-
+```text
+DeepSeek model
+  -> subagent_codex tool in the selected agent preset
+  -> codex Provider on the Host
+  -> package-local @openai/codex app-server --stdio
+  -> one ephemeral Codex thread
+  -> final answer returned through the subagent result
 ```
-dsh 主模型 → subagent_codex 工具
-  → codex provider（@deepseek-ai/dsh-subagent-codex）
-    → spawn @openai/codex app-server --stdio
-      → Codex 独立临时线程执行（复用 ~/.codex 认证与配置）
-      → 返回 final_answer
+
+Codex authentication and native settings come from the local Codex
+installation. An explicit Provider `model` overrides the native model; when
+omitted, Codex settings remain authoritative.
+
+## Configuration
+
+This Bundle applies after the official Provider Bundle and targets its
+`subagent-codex` loader id. To override Provider configuration, add a later
+entry to the profile's `cordis.patch.yml`:
+
+```yaml
+- id: subagent-codex
+  config:
+    providerName: codex
+    permissionMode: approve-for-me
+    model: gpt-5.6-sol
 ```
 
-- 模型/推理强度由本机 `~/.codex/config.toml` 决定（默认 `gpt-5.6-sol` + `high`）
-- `permissionMode: never`：非交互、自动拒绝审批、走原生沙箱
-- 一次性线程：每次委派新进程 + 新临时线程，独立 token 上下文
+Profile patch edits reload live in the `web` profile. Changes to an installed
+Bundle patch or package version require a profile restart.
 
-## 配置调整
-
-改 `permissionMode`（`approve-for-me`、`dangerously-bypass-approvals-and-sandbox`）
-或模型，编辑本插件的 `cordis.patch.yml` 或 profile 的 `cordis.patch.yml`
-覆盖对应行，保存后 host 半热生效。
-
-## 卸载
+## Uninstall
 
 ```sh
 cd /Users/mori/src/deepseek-harness
 pnpm dsh plugin --profile web remove dsh-codex-enabler
 pnpm dsh plugin --profile web remove @deepseek-ai/dsh-subagent-codex
-cd ~/.dsh/profiles/web && pnpm remove @openai/codex
 ```
+
+The generated preset is user-authored data and is intentionally retained.
+Delete `<dshHome>/.agent-presets/standard-codex` separately after confirming
+that no new session should use it.

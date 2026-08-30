@@ -1,11 +1,11 @@
 {
   "name": "dsh-codex-enabler",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "One-command Codex subagent integration for DeepSeek Harness: registers the subagent-codex provider and exposes the model-facing subagent_codex tool. Run install.mjs to install the full runtime.",
-  "dependencies": {
-    "@deepseek-ai/dsh-subagent-codex": "link:../../../deepseek-harness/packages/subagent/subagent-codex"
+  "description": "Codex subagent setup for DeepSeek Harness: configures the official Host provider and creates a dedicated agent preset that grants subagent_codex.",
+  "scripts": {
+    "test": "node --test install.test.mjs"
   },
   "dsh": {
     "bundle": {
@@ -14,6 +14,7 @@
   },
   "files": [
     "cordis.patch.yml",
+    "install-lib.mjs",
     "install.mjs",
     "README.md"
   ]
