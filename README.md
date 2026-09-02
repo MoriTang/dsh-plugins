@@ -20,7 +20,8 @@ dsh-plugins/
 │   ├── greet-tool/        # 示例插件：可配置的 greet 工具（新插件的起点模板）
 │   ├── cost-balance/      # 会话消耗金额 + 账户余额实时显示（composer dock）
 │   ├── usage-heatmap/     # 设置页：GitHub 风格每日 token 消耗热力图
-│   └── codex-enabler/     # 一键 Codex subagent 接入
+│   ├── codex-enabler/     # 一键 Codex subagent 接入
+│   └── tool-audit/        # 工具调用审计：耗时/结果/失败/超时（composer dock）
 └── README.md
 ```
 
@@ -73,6 +74,21 @@ dsh-plugins/
 - **使用**：重启 profile 后，为新会话选择 `standard-codex`；既有会话的
   preset 与工具集不变。
 - **文档**：[`plugins/codex-enabler/README.md`](plugins/codex-enabler/README.md)
+
+### `tool-audit` — 工具调用审计（耗时/结果/失败/超时）
+
+- **类型**：双半插件（host + client）
+- **功能**：
+  - **调用账本**：记录每次模型工具调用的耗时、结算结果（成功/失败/中止/
+    超时）、慢调用标记，composer dock 实时滚动展示
+  - **失败/超时可见**：红 = 失败、灰 = 中止、琥珀 = 超时/慢调用，悬停看
+    callId 与 error code
+  - **可选兜底中止**：`abortAfterMs` 配置后，未声明 `timeoutMs` 预算的
+    工具超过该值会被中止（默认关闭，不重复官方 timeout 策略）
+- **数据通道**：host 挂 `tools/execute` 包装器（live 计时）写入内存账本，
+  client 轮询 `/tool-audit/recent`。
+- **测试**：核心逻辑 + host 包装器共 13 个用例（`tests/*.test.ts`）。
+- **文档**：[`plugins/tool-audit/README.md`](plugins/tool-audit/README.md)
 
 ## 快速开始
 
@@ -144,7 +160,9 @@ pnpm exec tsc --noEmit
   Harness home 的用户 patch 会热重载；已安装 bundle 自带的 patch 修改后需重启。
 - **GUI 无法开关插件**：Web UI 的 Plugins 设置页只渲染已注册插件的配置卡片，
   没有运行时启用/停用操作。
-- **加载方式分两类**：源码插件（`greet-tool`、`cost-balance`、`usage-heatmap`）
-  的 `name` 在 patch 层必须是**绝对路径**（patch 不改变模块解析基准目录），
-  换机器需调整；bundle 插件（`codex-enabler`）以**包名**挂载，
+- **加载方式分两类**：直接以 patch 引用源码的插件（如 `greet-tool`）的
+  `name` 需是**绝对路径**（patch 不改变模块解析基准目录），换机器需调整；
+  以**包名**挂载的插件（`cost-balance`、`usage-heatmap`、`tool-audit`）需要
+  先把插件目录 `link:` 进 profile 的 `package.json` 依赖并 `pnpm install`，
+  再在 `cordis.patch.yml` 里用包名插入行；bundle 插件（`codex-enabler`）
   通过 `dsh plugin add` 安装、`cordis.patch.yml` 覆盖配置。
