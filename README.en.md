@@ -11,8 +11,8 @@ are mounted into a running dsh instance through the configuration layer.
   the npm registry**, so external plugins use the `link:` protocol to point their
   dependencies to a local harness checkout.
 - This repository assumes by default that the harness checkout is located in the
-  sibling directory `../deepseek-harness` (that is,
-  `/Users/mori/src/deepseek-harness`). The relative `link:` paths in each plugin's
+  sibling directory `../deepseek-harness` (the harness project directory next to
+  this repository). The relative `link:` paths in each plugin's
   `package.json` are based on this layout.
 
 ## Directory Structure

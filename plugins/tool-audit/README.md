@@ -57,11 +57,9 @@ session-log 投影（日志事件没有时间戳）。
 ## 测试
 
 ```sh
-# 从 harness checkout 目录运行（tsx 可解析）
-node --import tsx/esm --test \
-  /Users/mori/src/dsh/plugins/tool-audit/tests/audit-core.test.ts
-node --import tsx/esm --test \
-  /Users/mori/src/dsh/plugins/tool-audit/tests/host-integration.test.ts
+# 从 harness checkout 目录运行（tsx 可解析）；<本仓库> 指本插件仓库路径
+node --import tsx/esm --test <本仓库>/plugins/tool-audit/tests/audit-core.test.ts
+node --import tsx/esm --test <本仓库>/plugins/tool-audit/tests/host-integration.test.ts
 ```
 
 核心逻辑（分类/账本/格式化）与 host 包装器（signal 替换与恢复、超时替换、

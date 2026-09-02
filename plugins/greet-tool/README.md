@@ -21,7 +21,7 @@
 ```yaml
 - insert:
     - id: greet-tool
-      name: '/Users/mori/src/dsh/plugins/greet-tool/src/index.ts'
+      name: '/绝对路径/到/本仓库/plugins/greet-tool/src/index.ts'
       config:
         greeting: 'Hello'
 ```
@@ -34,7 +34,7 @@
 从 harness checkout 运行：
 
 ```sh
-pnpm dsh web --patch /Users/mori/src/dsh/plugins/greet-tool/cordis.yml
+pnpm dsh web --patch /绝对路径/到/本仓库/plugins/greet-tool/cordis.yml
 ```
 
 打开 `http://127.0.0.1:3080`，让模型调用 `greet` 工具：
@@ -68,7 +68,7 @@ plugins/greet-tool/
 ## 类型检查
 
 ```sh
-cd /Users/mori/src/dsh/plugins/greet-tool
+cd plugins/greet-tool   # 从本仓库根目录
 pnpm install          # 物化 link:-ed 的 @deepseek-ai/* node_modules
 pnpm exec tsc --noEmit
 ```

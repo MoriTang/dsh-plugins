@@ -22,7 +22,7 @@ Add the plugin entry to the user patch layer of the web profile
 ```yaml
 - insert:
     - id: greet-tool
-      name: '/Users/mori/src/dsh/plugins/greet-tool/src/index.ts'
+      name: '/absolute/path/to/plugins/greet-tool/src/index.ts'
       config:
         greeting: 'Hello'
 ```
@@ -35,7 +35,7 @@ the patch, so the plugin is **mounted immediately without a restart**.
 Run the following from the harness checkout:
 
 ```sh
-pnpm dsh web --patch /Users/mori/src/dsh/plugins/greet-tool/cordis.yml
+pnpm dsh web --patch /absolute/path/to/plugins/greet-tool/cordis.yml
 ```
 
 Open `http://127.0.0.1:3080` and ask the model to invoke the `greet` tool:
@@ -71,7 +71,7 @@ plugins/greet-tool/
 ## Type Checking
 
 ```sh
-cd /Users/mori/src/dsh/plugins/greet-tool
+cd plugins/greet-tool   # from the repository root
 pnpm install          # Materialize the link:-ed @deepseek-ai/* node_modules
 pnpm exec tsc --noEmit
 ```

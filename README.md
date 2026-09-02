@@ -9,7 +9,7 @@
 - DeepSeek Harness 的 `@deepseek-ai/*` 工作区包**不发布到 npm registry**，
   因此外部插件通过 `link:` 协议把依赖指向本机的 harness checkout。
 - 本仓库默认假定 harness checkout 位于同级目录 `../deepseek-harness`
-  （即 `/Users/mori/src/deepseek-harness`），各插件 `package.json` 中的
+  （即本仓库所在目录旁的 harness 项目目录），各插件 `package.json` 中的
   `link:` 相对路径均基于该布局。
 
 ## 目录结构
