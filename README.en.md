@@ -23,7 +23,8 @@ dsh-plugins/
 │   ├── greet-tool/        # Example plugin: configurable greet tool (starter template for new plugins)
 │   ├── cost-balance/      # Real-time session cost and account balance display (composer dock)
 │   ├── usage-heatmap/     # Settings page: GitHub-style heatmap of daily token usage
-│   └── codex-enabler/     # One-click Codex subagent integration
+│   ├── codex-enabler/     # One-click Codex subagent integration
+│   └── tool-audit/        # Tool-call audit: duration/outcome/failure/timeout (composer dock)
 └── README.md
 ```
 
@@ -89,6 +90,25 @@ dsh-plugins/
 - **Usage**: After restarting the profile, select `standard-codex` for new
   sessions. Existing sessions retain their preset and toolset.
 - **Documentation**: [`plugins/codex-enabler/README.md`](plugins/codex-enabler/README.md)
+
+### `tool-audit` — Tool-Call Audit (duration / outcome / failure / timeout)
+
+- **Type**: dual-half plugin (host + client)
+- **Functionality**:
+  - **Call ledger**: Records every model tool call's wall duration and settle
+    outcome (success / failure / aborted / timeout) with a slow-call flag,
+    streamed live into the composer dock.
+  - **Failures / timeouts visible**: red = failure, gray = aborted,
+    amber = timeout/slow; hover for callId and the error code.
+  - **Optional blanket abort**: with `abortAfterMs`, only tools without their
+    own declared `timeoutMs` budget are aborted past it (off by default; does
+    not duplicate the official per-tool `timeoutMs` policy).
+- **Data channel**: the host times calls in `tools/execute` and commits the
+  authoritative settle from `tools/result` into an in-memory ledger; the
+  client polls `/tool-audit/recent` (session-scoped).
+- **Tests**: 16 cases across the pure core and the host integration
+  (`tests/*.test.ts`).
+- **Documentation**: [`plugins/tool-audit/README.md`](plugins/tool-audit/README.md)
 
 ## Quick Start
 

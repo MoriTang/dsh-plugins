@@ -1,19 +1,22 @@
 /**
  * Tool-call audit + slow-call monitor.
  *
- * Host half: wraps `tools/execute` (the around-dispatch waterfall) to measure
- * every model tool call's wall duration and settle outcome, keeps a bounded
- * per-session ledger in memory, optionally aborts calls that exceed a
- * configured hard budget, and serves `/tool-audit/recent` for the browser
- * half's composer-dock readout.
+ * Host half: measures every DISPATCHED model tool call's wall duration in the
+ * `tools/execute` around-dispatch waterfall (where timing is observable and an
+ * optional blanket abort deadline can swap `exec.signal`), then commits each
+ * record from the `tools/result` observer — the authoritative, frozen outcome
+ * AFTER wrapper normalization, caller cancellation, and `tools/post-execute`
+ * replacement. Tools denied before around-dispatch never dispatch and are out
+ * of scope (they settle without a `tools/execute` pass).
  *
  * Design notes:
- * - Durations need wall-clock timing, so this rides the LIVE `tools/execute`
- *   wrapper, not a session-log projection (log events carry no timestamps).
+ * - Durations need wall-clock timing, so the timing half rides the LIVE
+ *   `tools/execute` wrapper; committing from `tools/result` keeps the ledger
+ *   truthful about what actually settled (shipped `TOOL_TIMEOUT` replacements,
+ *   post-execute changes, harness cancellation codes like `ABORTED`).
  * - The harness already enforces per-tool declared `timeoutMs` budgets
- *   (`@deepseek-ai/dsh-tool-call-timeout-policy`); this plugin does NOT
- *   duplicate that. `abortAfterMs` is an optional blanket safety net for
- *   tools that declare no budget, off by default.
+ *   (`@deepseek-ai/dsh-tool-call-timeout-policy`). `abortAfterMs` is an OPTIONAL
+ *   cooperative safety net applied ONLY to tools that declare no budget.
  * - Audit data is deliberately NOT model-visible: nothing here appends to the
  *   session log, so it never pollutes the model's context.
  */
@@ -24,23 +27,29 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 // Type-only: pulls the tools service merge (ctx.tools) and the tools event map.
 import type {} from '@deepseek-ai/dsh-tools'
-import type { ToolDispatchExecution, ToolExecutionResult } from '@deepseek-ai/dsh-tools'
+import type { ToolDispatchExecution, ToolExecutionResult, ToolExecution } from '@deepseek-ai/dsh-tools'
 import { z } from 'zod'
 import {
   argsPreview,
   classifyOutcome,
+  TOOL_AUDIT_TIMEOUT,
   ToolAuditLedger,
   type ToolAuditRecord,
 } from './audit-core.ts'
+
+export { TOOL_AUDIT_TIMEOUT }
+
+/** Node's setTimeout caps at 2^31-1 ms (~24.8 days); beyond that it clamps to ~1 ms. */
+export const MAX_TIMEOUT_MS = 2_147_483_647
 
 export interface Config {
   /** Calls at or above this many milliseconds are flagged `slow` in the ledger. */
   slowThresholdMs: number
   /**
-   * Optional blanket budget: when set, any tool call exceeding it is aborted
-   * and its result replaced with a `TOOL_AUDIT_TIMEOUT` error. Undefined (the
-   * default) records only. Harness-declared per-tool `timeoutMs` budgets are
-   * enforced by the shipped timeout policy regardless of this setting.
+   * Optional cooperative blanket budget for tools that declare NO `timeoutMs`
+   * of their own: when set, such a call exceeding it is aborted (its result
+   * replaced with a `TOOL_AUDIT_TIMEOUT` error). Tools that declare their own
+   * budget are left to the shipped timeout policy. Default: off.
    */
   abortAfterMs?: number
   /** Newest calls kept per session id. */
@@ -51,13 +60,10 @@ export interface Config {
 
 export const Config: z.ZodType<Config> = z.object({
   slowThresholdMs: z.number().int().positive().default(60_000),
-  abortAfterMs: z.number().int().positive().optional(),
+  abortAfterMs: z.number().int().positive().max(MAX_TIMEOUT_MS).optional(),
   maxPerSession: z.number().int().positive().default(100),
   maxTotal: z.number().int().positive().default(1_000),
 })
-
-/** The plugin's own structured timeout error code (routable by retry/sandbox plugins). */
-export const TOOL_AUDIT_TIMEOUT = 'TOOL_AUDIT_TIMEOUT'
 
 export const name = 'tool-audit'
 export const inject = ['tools', 'webServer']
@@ -65,7 +71,12 @@ export const inject = ['tools', 'webServer']
 /** Agent-less callers (SDK/headless) share one bucket so they stay visible. */
 const HOST_BUCKET = '(host)'
 
-function json(res: ServerResponse, value: unknown): void {
+/** Default/safe route limit; malformed input is rejected, never widened. */
+const DEFAULT_LIMIT = 50
+const MAX_LIMIT = 500
+
+function json(res: ServerResponse, value: unknown, status = 200): void {
+  res.statusCode = status
   res.setHeader('content-type', 'application/json')
   res.end(JSON.stringify(value))
 }
@@ -131,41 +142,58 @@ function armDeadline(
   }
 }
 
-/** The one error code a thrown wrapper sees; failures usually arrive as results. */
-function errorCodeOf(result: ToolExecutionResult | undefined, error: unknown): string | null {
-  if (result !== undefined && result.isError) {
-    const info = result.error.info
-    if (info !== undefined && typeof info === 'object') {
-      const { name, code } = info as { name?: string; code?: unknown }
-      return code !== undefined ? String(code) : name ?? 'error'
-    }
-    return 'error'
+/** Structured error code of an authoritative result, when it carries one. */
+function errorCodeOf(result: ToolExecutionResult): string | null {
+  if (!result.isError) return null
+  const info = result.error.info
+  if (info !== undefined && typeof info === 'object') {
+    const { name, code } = info as { name?: string; code?: unknown }
+    return code !== undefined ? String(code) : name ?? null
   }
-  return error instanceof Error ? error.name : error === undefined ? null : 'error'
+  return null
+}
+
+/** Timing facts stashed by the execute wrapper until the authoritative result lands. */
+interface PendingAudit {
+  readonly sessionId: string
+  readonly callId: string
+  readonly name: string
+  readonly argsPreview: string
+  readonly startedAt: number
+  durationMs: number
+  timedOut: boolean
 }
 
 /**
- * Host half: record every model tool call (duration, settle outcome, slow
- * flag) into a bounded per-session ledger and serve `/tool-audit/recent`.
+ * Host half: time every dispatched model tool call in `tools/execute`, and
+ * commit each record in `tools/result` from the authoritative settle outcome.
+ * Serves `/tool-audit/recent` (per-session) for the browser half's dock.
  */
 export function apply(ctx: Context, config: Config): void {
   const ledger = new ToolAuditLedger({
     maxPerSession: config.maxPerSession,
     maxTotal: config.maxTotal,
   })
+  // In-flight timing stash keyed by execution token; consumed by tools/result.
+  const pending = new Map<symbol, PendingAudit>()
+  // Bounded: a call that never settles (uncooperative tool + teardown) would
+  // otherwise leak. Evict entries older than 10 minutes when adding new ones.
+  const STALE_MS = 10 * 60_000
 
   ctx.on('tools/execute', async (
     exec: ToolDispatchExecution,
     next: () => Promise<ToolExecutionResult>,
   ): Promise<ToolExecutionResult> => {
-    const sessionId = exec.agent === undefined ? HOST_BUCKET : String(exec.agent.id)
     const startedAt = Date.now()
     const startedMs = performance.now()
+    const sessionId = exec.agent === undefined ? HOST_BUCKET : String(exec.agent.id)
 
-    // Optional blanket budget. The caller's own signal is restored before any
-    // later listener (post-execute) or the tool body sees teardown.
+    // Optional blanket budget: only for tools that declare no timeoutMs of
+    // their own — declared budgets belong to the shipped timeout policy, and
+    // double deadlines would race each other.
+    const declaredBudget = ctx.tools.get(exec.name, exec.agent)?.timeoutMs
     const upstream = exec.signal
-    const deadline = config.abortAfterMs === undefined
+    const deadline = config.abortAfterMs === undefined || declaredBudget !== undefined
       ? undefined
       : armDeadline(upstream, config.abortAfterMs)
     if (deadline !== undefined) exec.signal = deadline.signal
@@ -192,34 +220,68 @@ export function apply(ctx: Context, config: Config): void {
       result = auditTimeoutResult(config.abortAfterMs as number)
     }
 
-    const outcome = classifyOutcome({
-      isError: result?.isError === true || error !== undefined,
-      errorCode: errorCodeOf(result, error),
-      callerAborted: !timedOut && upstream.aborted,
-      timedOut,
-    })
-
-    ledger.push({
-      sessionId,
-      callId: String(exec.callId),
-      name: exec.name,
-      argsPreview: argsPreview(exec.arguments),
-      startedAt,
-      durationMs,
-      outcome,
-      errorCode: outcome === 'error' || outcome === 'timeout' ? errorCodeOf(result, error) : null,
-      slow: durationMs >= config.slowThresholdMs,
-    })
+    // Stash timing; the AUTHORITATIVE outcome is committed at tools/result.
+    for (const [token, entry] of pending) {
+      if (startedAt - entry.startedAt > STALE_MS) pending.delete(token)
+    }
+    if (pending.size < 1_000) {
+      pending.set(exec.token, {
+        sessionId,
+        callId: String(exec.callId),
+        name: exec.name,
+        argsPreview: argsPreview(exec.arguments),
+        startedAt,
+        durationMs,
+        timedOut,
+      })
+    }
 
     if (error !== undefined) throw error
     return result as ToolExecutionResult
   })
 
+  ctx.on('tools/result', (exec: Readonly<ToolExecution>, result: Readonly<ToolExecutionResult>) => {
+    const timing = pending.get(exec.token)
+    if (timing === undefined) return // not dispatched through our wrapper
+    pending.delete(exec.token)
+
+    const errorCode = errorCodeOf(result as ToolExecutionResult)
+    const outcome = classifyOutcome({
+      isError: result.isError,
+      errorCode,
+      timedOut: timing.timedOut,
+    })
+    ledger.push({
+      sessionId: timing.sessionId,
+      callId: timing.callId,
+      name: timing.name,
+      argsPreview: timing.argsPreview,
+      startedAt: timing.startedAt,
+      durationMs: timing.durationMs,
+      outcome,
+      errorCode,
+      slow: timing.durationMs >= config.slowThresholdMs,
+    })
+  })
+
   const recentHandler = (req: IncomingMessage, res: ServerResponse): void => {
     const url = new URL(req.url ?? '/', 'http://dsh.local')
-    const session = url.searchParams.get('session') ?? undefined
-    const rawLimit = Number(url.searchParams.get('limit') ?? 0)
-    const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(Math.floor(rawLimit), 500) : 0
+    const session = url.searchParams.get('session')
+    // The UI endpoint is per-session: argument previews may be sensitive, so
+    // refuse to enumerate every session's records.
+    if (session === null || session === '') {
+      json(res, { error: 'session query parameter is required' }, 400)
+      return
+    }
+    const rawLimit = url.searchParams.get('limit')
+    let limit = DEFAULT_LIMIT
+    if (rawLimit !== null) {
+      if (!/^[1-9][0-9]*$/.test(rawLimit)) {
+        json(res, { error: 'limit must be a positive integer' }, 400)
+        return
+      }
+      limit = Math.min(Number(rawLimit), MAX_LIMIT)
+    }
     const entries: ToolAuditRecord[] = ledger.recent(session, limit)
     json(res, {
       meta: { slowThresholdMs: config.slowThresholdMs },

@@ -14519,9 +14519,12 @@ function date4(params) {
 config(en_default());
 
 // src/audit-core.ts
+var TOOL_AUDIT_TIMEOUT = "TOOL_AUDIT_TIMEOUT";
+var TIMEOUT_CODES = /* @__PURE__ */ new Set(["TOOL_TIMEOUT", TOOL_AUDIT_TIMEOUT]);
+var ABORT_CODES = /* @__PURE__ */ new Set(["ABORTED", "ABORTED_BEFORE_DISPATCH"]);
 function classifyOutcome(input) {
-  if (input.timedOut) return "timeout";
-  if (input.callerAborted) return "aborted";
+  if (input.timedOut || input.errorCode !== null && input.errorCode !== void 0 && TIMEOUT_CODES.has(input.errorCode)) return "timeout";
+  if (input.errorCode !== null && input.errorCode !== void 0 && ABORT_CODES.has(input.errorCode)) return "aborted";
   if (input.isError) return "error";
   return "ok";
 }
@@ -14559,7 +14562,7 @@ var ToolAuditLedger = class {
     return record2;
   }
   /**
-   * Newest-first entries, optionally filtered to one session.
+   * Newest-first entries for one session.
    * @param sessionId - session filter; `undefined` returns every session.
    * @param limit - maximum entries returned; `<= 0` or absent means all.
    */
@@ -14588,17 +14591,20 @@ function argsPreview(value, maxChars = 160) {
 }
 
 // src/index.ts
+var MAX_TIMEOUT_MS = 2147483647;
 var Config = external_exports.object({
   slowThresholdMs: external_exports.number().int().positive().default(6e4),
-  abortAfterMs: external_exports.number().int().positive().optional(),
+  abortAfterMs: external_exports.number().int().positive().max(MAX_TIMEOUT_MS).optional(),
   maxPerSession: external_exports.number().int().positive().default(100),
   maxTotal: external_exports.number().int().positive().default(1e3)
 });
-var TOOL_AUDIT_TIMEOUT = "TOOL_AUDIT_TIMEOUT";
 var name = "tool-audit";
 var inject = ["tools", "webServer"];
 var HOST_BUCKET = "(host)";
-function json2(res, value) {
+var DEFAULT_LIMIT = 50;
+var MAX_LIMIT = 500;
+function json2(res, value, status = 200) {
+  res.statusCode = status;
   res.setHeader("content-type", "application/json");
   res.end(JSON.stringify(value));
 }
@@ -14649,28 +14655,29 @@ function armDeadline(upstream, ms) {
     }
   };
 }
-function errorCodeOf(result, error51) {
-  if (result !== void 0 && result.isError) {
-    const info = result.error.info;
-    if (info !== void 0 && typeof info === "object") {
-      const { name: name2, code } = info;
-      return code !== void 0 ? String(code) : name2 ?? "error";
-    }
-    return "error";
+function errorCodeOf(result) {
+  if (!result.isError) return null;
+  const info = result.error.info;
+  if (info !== void 0 && typeof info === "object") {
+    const { name: name2, code } = info;
+    return code !== void 0 ? String(code) : name2 ?? null;
   }
-  return error51 instanceof Error ? error51.name : error51 === void 0 ? null : "error";
+  return null;
 }
 function apply(ctx, config2) {
   const ledger = new ToolAuditLedger({
     maxPerSession: config2.maxPerSession,
     maxTotal: config2.maxTotal
   });
+  const pending = /* @__PURE__ */ new Map();
+  const STALE_MS = 10 * 6e4;
   ctx.on("tools/execute", async (exec, next) => {
-    const sessionId = exec.agent === void 0 ? HOST_BUCKET : String(exec.agent.id);
     const startedAt = Date.now();
     const startedMs = performance.now();
+    const sessionId = exec.agent === void 0 ? HOST_BUCKET : String(exec.agent.id);
+    const declaredBudget = ctx.tools.get(exec.name, exec.agent)?.timeoutMs;
     const upstream = exec.signal;
-    const deadline = config2.abortAfterMs === void 0 ? void 0 : armDeadline(upstream, config2.abortAfterMs);
+    const deadline = config2.abortAfterMs === void 0 || declaredBudget !== void 0 ? void 0 : armDeadline(upstream, config2.abortAfterMs);
     if (deadline !== void 0) exec.signal = deadline.signal;
     let result;
     let error51;
@@ -14689,31 +14696,61 @@ function apply(ctx, config2) {
     if (timedOut && result !== void 0) {
       result = auditTimeoutResult(config2.abortAfterMs);
     }
-    const outcome = classifyOutcome({
-      isError: result?.isError === true || error51 !== void 0,
-      errorCode: errorCodeOf(result, error51),
-      callerAborted: !timedOut && upstream.aborted,
-      timedOut
-    });
-    ledger.push({
-      sessionId,
-      callId: String(exec.callId),
-      name: exec.name,
-      argsPreview: argsPreview(exec.arguments),
-      startedAt,
-      durationMs,
-      outcome,
-      errorCode: outcome === "error" || outcome === "timeout" ? errorCodeOf(result, error51) : null,
-      slow: durationMs >= config2.slowThresholdMs
-    });
+    for (const [token, entry] of pending) {
+      if (startedAt - entry.startedAt > STALE_MS) pending.delete(token);
+    }
+    if (pending.size < 1e3) {
+      pending.set(exec.token, {
+        sessionId,
+        callId: String(exec.callId),
+        name: exec.name,
+        argsPreview: argsPreview(exec.arguments),
+        startedAt,
+        durationMs,
+        timedOut
+      });
+    }
     if (error51 !== void 0) throw error51;
     return result;
   });
+  ctx.on("tools/result", (exec, result) => {
+    const timing = pending.get(exec.token);
+    if (timing === void 0) return;
+    pending.delete(exec.token);
+    const errorCode = errorCodeOf(result);
+    const outcome = classifyOutcome({
+      isError: result.isError,
+      errorCode,
+      timedOut: timing.timedOut
+    });
+    ledger.push({
+      sessionId: timing.sessionId,
+      callId: timing.callId,
+      name: timing.name,
+      argsPreview: timing.argsPreview,
+      startedAt: timing.startedAt,
+      durationMs: timing.durationMs,
+      outcome,
+      errorCode,
+      slow: timing.durationMs >= config2.slowThresholdMs
+    });
+  });
   const recentHandler = (req, res) => {
     const url2 = new URL(req.url ?? "/", "http://dsh.local");
-    const session = url2.searchParams.get("session") ?? void 0;
-    const rawLimit = Number(url2.searchParams.get("limit") ?? 0);
-    const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(Math.floor(rawLimit), 500) : 0;
+    const session = url2.searchParams.get("session");
+    if (session === null || session === "") {
+      json2(res, { error: "session query parameter is required" }, 400);
+      return;
+    }
+    const rawLimit = url2.searchParams.get("limit");
+    let limit = DEFAULT_LIMIT;
+    if (rawLimit !== null) {
+      if (!/^[1-9][0-9]*$/.test(rawLimit)) {
+        json2(res, { error: "limit must be a positive integer" }, 400);
+        return;
+      }
+      limit = Math.min(Number(rawLimit), MAX_LIMIT);
+    }
     const entries = ledger.recent(session, limit);
     json2(res, {
       meta: { slowThresholdMs: config2.slowThresholdMs },
@@ -14727,6 +14764,7 @@ function apply(ctx, config2) {
 }
 export {
   Config,
+  MAX_TIMEOUT_MS,
   TOOL_AUDIT_TIMEOUT,
   apply,
   inject,

@@ -11,6 +11,7 @@ import {
   argsPreview,
   classifyOutcome,
   formatDuration,
+  TOOL_AUDIT_TIMEOUT,
   ToolAuditLedger,
 } from '../src/audit-core.ts'
 
@@ -21,14 +22,26 @@ const base = {
   argsPreview: '{}',
   startedAt: 1_000,
   durationMs: 100,
+  outcome: 'ok' as const,
+  errorCode: null,
+  slow: false,
 }
 
-test('classifyOutcome precedence: timeout wins over caller abort and error', () => {
-  assert.equal(classifyOutcome({ isError: false, errorCode: null, callerAborted: false, timedOut: true }), 'timeout')
-  assert.equal(classifyOutcome({ isError: true, errorCode: 'X', callerAborted: true, timedOut: true }), 'timeout')
-  assert.equal(classifyOutcome({ isError: true, errorCode: 'X', callerAborted: true, timedOut: false }), 'aborted')
-  assert.equal(classifyOutcome({ isError: true, errorCode: 'TOOL_TIMEOUT', callerAborted: false, timedOut: false }), 'error')
-  assert.equal(classifyOutcome({ isError: false, errorCode: null, callerAborted: false, timedOut: false }), 'ok')
+test('classifyOutcome: timeout wins over abort/error via our flag or known codes', () => {
+  // Our own deadline flag.
+  assert.equal(classifyOutcome({ isError: false, errorCode: null, timedOut: true }), 'timeout')
+  // Shipped policy code and this plugin's own code both read as timeout.
+  assert.equal(classifyOutcome({ isError: true, errorCode: 'TOOL_TIMEOUT', timedOut: false }), 'timeout')
+  assert.equal(classifyOutcome({ isError: true, errorCode: TOOL_AUDIT_TIMEOUT, timedOut: false }), 'timeout')
+})
+
+test('classifyOutcome: harness cancellation codes read as aborted and keep their code', () => {
+  for (const code of ['ABORTED', 'ABORTED_BEFORE_DISPATCH']) {
+    assert.equal(classifyOutcome({ isError: true, errorCode: code, timedOut: false }), 'aborted')
+  }
+  // A plain error code stays error; success stays ok.
+  assert.equal(classifyOutcome({ isError: true, errorCode: 'FS_NOT_FOUND', timedOut: false }), 'error')
+  assert.equal(classifyOutcome({ isError: false, errorCode: null, timedOut: false }), 'ok')
 })
 
 test('ledger assigns monotonically increasing seq and returns newest first', () => {
@@ -91,8 +104,15 @@ test('argsPreview truncates long JSON in the middle and survives non-JSON', () =
   assert.equal(argsPreview(null), 'null')
 })
 
-test('formatDuration renders ms, seconds, and minutes compactly', () => {
+test('formatDuration renders ms, seconds, and minutes without boundary artifacts', () => {
   assert.equal(formatDuration(412), '412ms')
   assert.equal(formatDuration(1_234), '1.2s')
   assert.equal(formatDuration(62_300), '1m2s')
+  // Rounding that would otherwise produce 60.0s / 3m60s.
+  assert.equal(formatDuration(59_999), '1m0s')
+  assert.equal(formatDuration(59_951), '1m0s')
+  assert.equal(formatDuration(59_949), '59.9s')
+  assert.equal(formatDuration(239_951), '4m0s')
+  assert.equal(formatDuration(Number.NaN), '0ms')
+  assert.equal(formatDuration(-5), '0ms')
 })

@@ -9,6 +9,20 @@
 /** Settled outcome of one tool call. Precedence: timeout > aborted > error > ok. */
 export type ToolOutcome = 'ok' | 'error' | 'aborted' | 'timeout'
 
+/** This plugin's own deadline error code (mirrors the shipped policy's TOOL_TIMEOUT). */
+export const TOOL_AUDIT_TIMEOUT = 'TOOL_AUDIT_TIMEOUT'
+
+/**
+ * Structured error codes classified as a timeout. `TOOL_TIMEOUT` is the shipped
+ * `@deepseek-ai/dsh-tool-call-timeout-policy` code; `TOOL_AUDIT_TIMEOUT` is this
+ * plugin's own blanket-deadline code. Retry/sandbox plugins may mint others —
+ * those stay plain `error`.
+ */
+export const TIMEOUT_CODES: ReadonlySet<string> = new Set(['TOOL_TIMEOUT', TOOL_AUDIT_TIMEOUT])
+
+/** Canonical cancellation codes the harness substitutes on caller/turn abort. */
+export const ABORT_CODES: ReadonlySet<string> = new Set(['ABORTED', 'ABORTED_BEFORE_DISPATCH'])
+
 /** One recorded tool call. Immutable after {@link ToolAuditLedger.push}. */
 export interface ToolAuditRecord {
   /** Monotonic ledger sequence; larger means newer. */
@@ -24,7 +38,7 @@ export interface ToolAuditRecord {
   /** Wall-clock dispatch duration in milliseconds. */
   readonly durationMs: number
   readonly outcome: ToolOutcome
-  /** Structured error code (e.g. `TOOL_TIMEOUT`, `TOOL_AUDIT_TIMEOUT`), when failed. */
+  /** Structured error code (e.g. `TOOL_TIMEOUT`, `TOOL_AUDIT_TIMEOUT`, `FS_NOT_FOUND`), when the result carried one. */
   readonly errorCode: string | null
   /** Whether the call crossed the configured slow threshold. */
   readonly slow: boolean
@@ -33,17 +47,21 @@ export interface ToolAuditRecord {
 /** Inputs the wrapper derives at settle; pure so classification is testable. */
 export interface OutcomeInput {
   readonly isError: boolean
+  /** Structured error code of the authoritative result, when present. */
   readonly errorCode: string | null | undefined
-  /** Caller/turn cancellation observed at settle (the audit deadline did not fire). */
-  readonly callerAborted: boolean
-  /** The audit deadline fired and replaced the result. */
+  /** This plugin's own deadline fired (belt-and-braces alongside the code). */
   readonly timedOut: boolean
 }
 
-/** Classify a settled call. Our deadline wins; then caller cancellation; then error. */
+/**
+ * Classify the AUTHORITATIVE settle outcome. Our deadline or a known timeout
+ * code wins; then harness cancellation codes; then any other error; else ok.
+ */
 export function classifyOutcome(input: OutcomeInput): ToolOutcome {
-  if (input.timedOut) return 'timeout'
-  if (input.callerAborted) return 'aborted'
+  if (input.timedOut || (input.errorCode !== null && input.errorCode !== undefined
+    && TIMEOUT_CODES.has(input.errorCode))) return 'timeout'
+  if (input.errorCode !== null && input.errorCode !== undefined
+    && ABORT_CODES.has(input.errorCode)) return 'aborted'
   if (input.isError) return 'error'
   return 'ok'
 }
@@ -98,7 +116,7 @@ export class ToolAuditLedger {
   }
 
   /**
-   * Newest-first entries, optionally filtered to one session.
+   * Newest-first entries for one session.
    * @param sessionId - session filter; `undefined` returns every session.
    * @param limit - maximum entries returned; `<= 0` or absent means all.
    */
@@ -131,11 +149,20 @@ export function argsPreview(value: unknown, maxChars = 160): string {
   return `${text.slice(0, head)}…${text.slice(-tail)}`
 }
 
-/** Compact wall duration: `412ms`, `1.2s`, `3m5s`. */
+/** Compact wall duration: `412ms`, `1.2s`, `3m5s` (no `60.0s`/`3m60s` artifacts). */
 export function formatDuration(ms: number): string {
+  if (!Number.isFinite(ms) || ms < 0) return '0ms'
   if (ms < 1_000) return `${Math.round(ms)}ms`
-  const seconds = ms / 1_000
-  if (seconds < 60) return `${seconds.toFixed(1)}s`
-  const minutes = Math.floor(seconds / 60)
-  return `${minutes}m${Math.round(seconds % 60)}s`
+  if (ms < 60_000) {
+    const tenths = Math.round(ms / 100)
+    if (tenths >= 600) return '1m0s'
+    return `${(tenths / 10).toFixed(1)}s`
+  }
+  let minutes = Math.floor(ms / 60_000)
+  let seconds = Math.round((ms % 60_000) / 1_000)
+  if (seconds === 60) {
+    minutes += 1
+    seconds = 0
+  }
+  return `${minutes}m${seconds}s`
 }

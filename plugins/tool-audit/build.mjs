@@ -11,20 +11,26 @@
  * (see docs/cookbook/adding-a-settings-card.md).
  */
 import { createRequire } from 'node:module'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, existsSync } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
-import { dirname } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-// esbuild is not a dependency of this package; it lives in the harness
-// checkout's pnpm store (the registry is not reachable, so no install here).
-// Load it by its store path, which the harness's .pnpm virtual store exposes.
-const require = createRequire(
-  '/Users/mori/src/deepseek-harness/node_modules/.pnpm/node_modules/esbuild/lib/main.js',
-)
+// esbuild is not a dependency of this package (the registry is not reachable
+// for out-of-tree installs). Resolve it from the harness checkout's pnpm
+// store, which exposes a `.pnpm/node_modules` virtual store. The checkout is
+// the sibling `../deepseek-harness` of the plugins repository root, and can be
+// overridden with the DSH_HARNESS environment variable.
+const root = dirname(fileURLToPath(import.meta.url))
+// root = <repo>/plugins/tool-audit  →  repo parent  →  sibling harness
+const harness = resolve(process.env.DSH_HARNESS ?? resolve(root, '../../..', 'deepseek-harness'))
+const esbuildEntry = join(harness, 'node_modules/.pnpm/node_modules/esbuild/lib/main.js')
+if (!existsSync(esbuildEntry)) {
+  throw new Error(`esbuild not found at ${esbuildEntry}; set DSH_HARNESS to your deepseek-harness checkout`)
+}
+const require = createRequire(esbuildEntry)
 const { build } = require('esbuild')
 
-const root = dirname(fileURLToPath(import.meta.url))
 const PKG_ID = 'dsh-tool-audit'
 
 /** Specifiers the browser resolves from the client module table (never bundled). */
@@ -34,7 +40,6 @@ const CLIENT_EXTERNALS = [
   'react-dom',
   'react-dom/client',
   '@deepseek-ai/cordis',
-  '@deepseek-ai/dsh-client-runtime/client',
   '@deepseek-ai/dsh-client-ui-conversation/client',
   '@deepseek-ai/dsh-client-ui-slots',
   '@deepseek-ai/dsh-client-ui-primitives',

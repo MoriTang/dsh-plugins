@@ -37,11 +37,20 @@ var import_dsh_client_ui_primitives = require("@deepseek-ai/dsh-client-ui-primit
 
 // src/audit-core.ts
 function formatDuration(ms) {
+  if (!Number.isFinite(ms) || ms < 0) return "0ms";
   if (ms < 1e3) return `${Math.round(ms)}ms`;
-  const seconds = ms / 1e3;
-  if (seconds < 60) return `${seconds.toFixed(1)}s`;
-  const minutes = Math.floor(seconds / 60);
-  return `${minutes}m${Math.round(seconds % 60)}s`;
+  if (ms < 6e4) {
+    const tenths = Math.round(ms / 100);
+    if (tenths >= 600) return "1m0s";
+    return `${(tenths / 10).toFixed(1)}s`;
+  }
+  let minutes = Math.floor(ms / 6e4);
+  let seconds = Math.round(ms % 6e4 / 1e3);
+  if (seconds === 60) {
+    minutes += 1;
+    seconds = 0;
+  }
+  return `${minutes}m${seconds}s`;
 }
 
 // src/client/ToolAuditDock.tsx
@@ -138,25 +147,39 @@ function AuditRow({ record }) {
     /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { ...durationStyle, ...slowDuration }, children: formatDuration(record.durationMs) })
   ] }) });
 }
+function isRecentPayload(value) {
+  if (typeof value !== "object" || value === null) return false;
+  const payload = value;
+  return Array.isArray(payload.entries) && typeof payload.meta?.slowThresholdMs === "number";
+}
 function useRecent(sessionId, intervalMs) {
   const [payload, setPayload] = (0, import_react.useState)(null);
   (0, import_react.useEffect)(() => {
     if (sessionId === void 0) return;
     let cancelled = false;
+    let inFlight;
+    let timer;
     const poll = async () => {
+      inFlight = new AbortController();
       try {
-        const res = await fetch(`/tool-audit/recent?session=${encodeURIComponent(sessionId)}&limit=${MAX_ROWS}`);
+        const res = await fetch(
+          `/tool-audit/recent?session=${encodeURIComponent(sessionId)}&limit=${MAX_ROWS}`,
+          { signal: inFlight.signal }
+        );
         if (!res.ok) return;
         const data = await res.json();
-        if (!cancelled) setPayload(data);
+        if (!cancelled && isRecentPayload(data)) setPayload(data);
       } catch {
+      } finally {
+        inFlight = void 0;
+        if (!cancelled) timer = setTimeout(() => void poll(), intervalMs);
       }
     };
     void poll();
-    const timer = setInterval(() => void poll(), intervalMs);
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      inFlight?.abort();
+      if (timer !== void 0) clearTimeout(timer);
     };
   }, [sessionId, intervalMs]);
   return payload;

@@ -83,11 +83,11 @@ dsh-plugins/
     超时）、慢调用标记，composer dock 实时滚动展示
   - **失败/超时可见**：红 = 失败、灰 = 中止、琥珀 = 超时/慢调用，悬停看
     callId 与 error code
-  - **可选兜底中止**：`abortAfterMs` 配置后，未声明 `timeoutMs` 预算的
-    工具超过该值会被中止（默认关闭，不重复官方 timeout 策略）
-- **数据通道**：host 挂 `tools/execute` 包装器（live 计时）写入内存账本，
-  client 轮询 `/tool-audit/recent`。
-- **测试**：核心逻辑 + host 包装器共 13 个用例（`tests/*.test.ts`）。
+  - **可选兜底中止**：`abortAfterMs` 配置后，仅对未声明自身 `timeoutMs`
+    预算的工具兜底中止（默认关闭，不重复官方 timeout 策略）
+- **数据通道**：host 在 `tools/execute` 计时、`tools/result` 提交权威结算
+  到内存账本，client 轮询 `/tool-audit/recent`（按 session 过滤）。
+- **测试**：纯核心 + host 集成共 16 个用例（`tests/*.test.ts`）。
 - **文档**：[`plugins/tool-audit/README.md`](plugins/tool-audit/README.md)
 
 ## 快速开始

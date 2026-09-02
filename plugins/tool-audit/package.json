@@ -22,15 +22,13 @@
     "react": "link:../../../deepseek-harness/node_modules/.pnpm/node_modules/react",
     "typescript": "link:../../../deepseek-harness/node_modules/.pnpm/node_modules/typescript"
   },
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit"
+  },
   "exports": {
-    ".": {
-      "types": "./lib/types/index.d.ts",
-      "default": "./lib/index.js"
-    },
-    "./client": {
-      "types": "./lib/types/client/index.d.ts",
-      "default": "./lib/client.js"
-    },
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
     "./src/*": "./src/*",
     "./package.json": "./package.json"
   },

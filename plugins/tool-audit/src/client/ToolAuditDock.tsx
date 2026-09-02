@@ -126,27 +126,49 @@ function AuditRow({ record }: { record: ToolAuditRecord }): ReactNode {
   )
 }
 
-/** Poll the host's per-session recent-call route while the dock is mounted. */
+/** Minimal shape guard so a malformed route response cannot crash rendering. */
+function isRecentPayload(value: unknown): value is ToolAuditRecentPayload {
+  if (typeof value !== 'object' || value === null) return false
+  const payload = value as Partial<ToolAuditRecentPayload>
+  return Array.isArray(payload.entries)
+    && typeof payload.meta?.slowThresholdMs === 'number'
+}
+
+/**
+ * Poll the host's per-session recent-call route. One request at a time: the
+ * next poll is scheduled only after the current one settles, and the in-flight
+ * fetch is aborted on unmount/session change.
+ */
 function useRecent(sessionId: string | undefined, intervalMs: number): ToolAuditRecentPayload | null {
   const [payload, setPayload] = useState<ToolAuditRecentPayload | null>(null)
   useEffect(() => {
     if (sessionId === undefined) return
     let cancelled = false
+    let inFlight: AbortController | undefined
+    let timer: ReturnType<typeof setTimeout> | undefined
+
     const poll = async (): Promise<void> => {
+      inFlight = new AbortController()
       try {
-        const res = await fetch(`/tool-audit/recent?session=${encodeURIComponent(sessionId)}&limit=${MAX_ROWS}`)
+        const res = await fetch(
+          `/tool-audit/recent?session=${encodeURIComponent(sessionId)}&limit=${MAX_ROWS}`,
+          { signal: inFlight.signal },
+        )
         if (!res.ok) return
-        const data = (await res.json()) as ToolAuditRecentPayload
-        if (!cancelled) setPayload(data)
+        const data: unknown = await res.json()
+        if (!cancelled && isRecentPayload(data)) setPayload(data)
       } catch {
-        // Keep the previous value on transient failures.
+        // Abort (unmount) or transient failure: keep the previous value.
+      } finally {
+        inFlight = undefined
+        if (!cancelled) timer = setTimeout(() => void poll(), intervalMs)
       }
     }
     void poll()
-    const timer = setInterval(() => void poll(), intervalMs)
     return () => {
       cancelled = true
-      clearInterval(timer)
+      inFlight?.abort()
+      if (timer !== undefined) clearTimeout(timer)
     }
   }, [sessionId, intervalMs])
   return payload
