@@ -45,6 +45,7 @@ dsh-plugins/
   （`cost ¥0.0012 · 12.3K in · 4.5K out · balance ¥438.76`）
 - **数据通道**：消耗金额走 session projection（host 纯事件折叠 → `useProjection`），
   余额走 `/cost-balance/balance` 路由（client 轮询）。
+- **测试**：7 个用例覆盖投影折叠（累计/同 step 替换/成本推导/模式一致）（`tests/`）。
 - **文档**：[`plugins/cost-balance/README.md`](plugins/cost-balance/README.md)
 
 ### `usage-heatmap` — 每日 token 热力图
@@ -57,6 +58,7 @@ dsh-plugins/
 - **数据通道**：host 监听 `session/event` 按天聚合 + 按 `request/header` 归模型，
   启动时从持久化 session 日志回填历史；client 经 `/usage-heatmap/history` 轮询。
 - **持久化**：`$DSH_HOME/usage-heatmap/daily-usage.json`（原子写入）。
+- **测试**：11 个用例覆盖 daily-usage 折叠/归因/替换/持久化不变量（`tests/`）。
 - **文档**：[`plugins/usage-heatmap/README.md`](plugins/usage-heatmap/README.md)
 
 ### `codex-enabler` — Codex Provider 与专用 preset 接入

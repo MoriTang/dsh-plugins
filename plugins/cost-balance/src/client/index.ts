@@ -1,6 +1,8 @@
-import type { ClientContext, UseProjection } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context } from '@deepseek-ai/cordis'
+import type { UseProjection } from '@deepseek-ai/dsh-api-session-controller/client'
 // Type-only: pulls the ui-conversation SlotMap merge (composer.dock) through
 // the Client assembly boundary.
+import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import type { CostBalanceView } from '../projection.ts'
@@ -22,7 +24,7 @@ export const inject = ['slots']
  * host's `/cost-balance/balance` route (an external account fact, not a
  * session-log fold).
  */
-export function apply(ctx: ClientContext): void {
+export function apply(ctx: Context): void {
   ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register({
     name: 'conversation.composer.dock',
     id: 'cost-balance',

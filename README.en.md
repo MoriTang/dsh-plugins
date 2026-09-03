@@ -56,6 +56,8 @@ dsh-plugins/
 - **Data channels**: Session cost uses session projection (pure event folding on
   the host → `useProjection`), while the balance uses the
   `/cost-balance/balance` route (client polling).
+- **Tests**: 7 cases over the projection fold (accumulation / same-step
+  replacement / cost derivation / schema consistency) (`tests/`).
 - **Documentation**: [`plugins/cost-balance/README.md`](plugins/cost-balance/README.md)
 
 ### `usage-heatmap` — Daily Token Usage Heatmap
@@ -72,6 +74,8 @@ dsh-plugins/
   historical data from persisted session logs; the client polls
   `/usage-heatmap/history`.
 - **Persistence**: `$DSH_HOME/usage-heatmap/daily-usage.json` (atomic writes).
+- **Tests**: 11 cases over the daily-usage fold / attribution / replacement /
+  persistence invariants (`tests/`).
 - **Documentation**: [`plugins/usage-heatmap/README.md`](plugins/usage-heatmap/README.md)
 
 ### `codex-enabler` — Codex Provider Integration with a Dedicated preset

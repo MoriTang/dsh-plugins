@@ -121,6 +121,21 @@ required.
   status 200 and `window.__ModuleLoader__.load({...})`.
 - **Type checking**: `cd plugins/cost-balance && pnpm exec tsc --noEmit` (or the harness's tsc).
 
+## Tests
+
+```sh
+# Run from the harness checkout so `tsx` resolves; <this-repo> is this plugins
+# repository's path
+node --import tsx/esm --test <this-repo>/plugins/cost-balance/tests/projection.test.ts
+```
+
+7 cases cover the `costBalanceDefinition` fold: all-zero init with currency
+passthrough, non-usage events ignored, cross-step accumulation, same-
+(turn, step) **replacement** (including a smaller later sample and idempotent
+identical repeats), cost derived from current totals at per-million pricing
+(no replacement drift), and stateSchema / wire.viewSchema consistency.
+
+## Known Limitations
 ## Known Limitations
 
 - **Changes to client source code require a restart**: The web profile disables

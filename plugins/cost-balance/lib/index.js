@@ -6,10 +6,17 @@ var __export = (target, all) => {
 
 // ../../../deepseek-harness/packages/credentials/credentials/lib/index.js
 import { Service } from "@deepseek-ai/cordis";
+
+// ../../../deepseek-harness/packages/util/brand/src/index.ts
+function brandString(value) {
+  return value;
+}
+
+// ../../../deepseek-harness/packages/credentials/credentials/lib/index.js
 var REF_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 function credentialRef(value) {
   if (!isCredentialRefName(value)) throw new TypeError(`credential ref "${value}" must match ${String(REF_PATTERN)}`);
-  return value;
+  return brandString(value);
 }
 function isCredentialRefName(value) {
   return REF_PATTERN.test(value);

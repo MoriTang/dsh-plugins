@@ -1,5 +1,5 @@
 import { memo, useEffect, useState } from 'react'
-import type { UseProjection } from '@deepseek-ai/dsh-client-runtime/client'
+import type { UseProjection } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { CostBalanceView } from '../projection.ts'
 
 /** Props: the composer-dock standard kit (the projection reader) plus nothing else. */
