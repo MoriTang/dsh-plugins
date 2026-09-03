@@ -7,7 +7,7 @@
  * Run from the harness checkout (tsx resolvable there):
  *
  *   node --import tsx/esm --test \
- *     /Users/mori/src/dsh/plugins/tool-audit/tests/host-integration.test.ts
+ *     <repo>/plugins/tool-audit/tests/host-integration.test.ts
  */
 import assert from 'node:assert/strict'
 import { test } from 'node:test'

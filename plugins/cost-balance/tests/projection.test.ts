@@ -3,7 +3,7 @@
  * Run from the harness checkout so `tsx` is resolvable:
  *
  *   node --import tsx/esm --test \
- *     /Users/mori/src/dsh/plugins/cost-balance/tests/projection.test.ts
+ *     <repo>/plugins/cost-balance/tests/projection.test.ts
  */
 import assert from 'node:assert/strict'
 import { test } from 'node:test'

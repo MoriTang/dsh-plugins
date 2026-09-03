@@ -3,7 +3,7 @@
  * Run from the harness checkout so `tsx` is resolvable:
  *
  *   node --import tsx/esm --test \
- *     /Users/mori/src/dsh/plugins/tool-audit/tests/audit-core.test.ts
+ *     <repo>/plugins/tool-audit/tests/audit-core.test.ts
  */
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
