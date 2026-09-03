@@ -69,10 +69,7 @@ pnpm install
 node build.mjs              # 生成 lib/index.js + lib/client.js
                             # esbuild 从同级 ../deepseek-harness 的 pnpm store
                             # 解析；可用环境变量 DSH_HARNESS 覆盖 checkout 路径
-node --import tsx/esm --test \
-  <本仓库>/plugins/tool-audit/tests/audit-core.test.ts       # 从 harness checkout 运行
-node --import tsx/esm --test \
-  <本仓库>/plugins/tool-audit/tests/host-integration.test.ts
+npm test                    # node --import tsx/esm --test tests/*.test.ts
 ```
 
 纯核心（分类/账本/格式化）与 host 集成（execute→result 管线、权威结果覆盖、

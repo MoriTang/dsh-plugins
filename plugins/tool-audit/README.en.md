@@ -79,10 +79,7 @@ pnpm install
 node build.mjs               # emits lib/index.js + lib/client.js; resolves esbuild
                              # from the sibling ../deepseek-harness pnpm store,
                              # overridable with the DSH_HARNESS environment variable
-node --import tsx/esm --test \
-  <this-repo>/plugins/tool-audit/tests/audit-core.test.ts      # run from the harness checkout
-node --import tsx/esm --test \
-  <this-repo>/plugins/tool-audit/tests/host-integration.test.ts
+npm test                     # node --import tsx/esm --test tests/*.test.ts
 ```
 
 16 cases covering the pure core (classification / ledger / formatting) and the

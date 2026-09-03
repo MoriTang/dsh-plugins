@@ -1,9 +1,6 @@
 /**
  * Unit tests for the cost-balance projection fold.
- * Run from the harness checkout so `tsx` is resolvable:
- *
- *   node --import tsx/esm --test \
- *     <repo>/plugins/cost-balance/tests/projection.test.ts
+ * Run from the plugin directory: `npm test`.
  */
 import assert from 'node:assert/strict'
 import { test } from 'node:test'

@@ -1,9 +1,6 @@
 /**
  * Unit tests for the framework-free audit core (classify/ledger/format).
- * Run from the harness checkout so `tsx` is resolvable:
- *
- *   node --import tsx/esm --test \
- *     <repo>/plugins/tool-audit/tests/audit-core.test.ts
+ * Run from the plugin directory: `npm test`.
  */
 import assert from 'node:assert/strict'
 import { test } from 'node:test'

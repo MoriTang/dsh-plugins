@@ -124,9 +124,9 @@ required.
 ## Tests
 
 ```sh
-# Run from the harness checkout so `tsx` resolves; <this-repo> is this plugins
-# repository's path
-node --import tsx/esm --test <this-repo>/plugins/cost-balance/tests/projection.test.ts
+cd plugins/cost-balance       # from this repository's root
+pnpm install
+npm test
 ```
 
 7 cases cover the `costBalanceDefinition` fold: all-zero init with currency
@@ -135,7 +135,6 @@ passthrough, non-usage events ignored, cross-step accumulation, same-
 identical repeats), cost derived from current totals at per-million pricing
 (no replacement drift), and stateSchema / wire.viewSchema consistency.
 
-## Known Limitations
 ## Known Limitations
 
 - **Changes to client source code require a restart**: The web profile disables

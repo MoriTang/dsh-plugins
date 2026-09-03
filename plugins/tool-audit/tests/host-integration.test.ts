@@ -4,10 +4,7 @@
  * authoritative commit, the TOOL_AUDIT_TIMEOUT replacement, deadline-vs-
  * declared-budget skips, and the /tool-audit/recent route's validation.
  *
- * Run from the harness checkout (tsx resolvable there):
- *
- *   node --import tsx/esm --test \
- *     <repo>/plugins/tool-audit/tests/host-integration.test.ts
+ * Run from the plugin directory: `npm test`.
  */
 import assert from 'node:assert/strict'
 import { test } from 'node:test'

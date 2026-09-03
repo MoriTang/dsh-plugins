@@ -118,8 +118,9 @@ pnpm dsh plugin --profile web add <本仓库>/plugins/cost-balance
 ## 测试
 
 ```sh
-# 从 harness checkout 目录运行（tsx 可解析）；<本仓库> 指本插件仓库路径
-node --import tsx/esm --test <本仓库>/plugins/cost-balance/tests/projection.test.ts
+cd plugins/cost-balance      # 从本仓库根目录
+pnpm install
+npm test
 ```
 
 7 个用例覆盖 `costBalanceDefinition` 折叠语义：init 全零与货币透传、忽略
@@ -127,7 +128,6 @@ node --import tsx/esm --test <本仓库>/plugins/cost-balance/tests/projection.t
 幂等）、cost 由当前总量按每百万单价推导（替换不漂移）、stateSchema /
 wire.viewSchema 一致性。
 
-## 已知限制
 ## 已知限制
 
 - **改 client 源码需重启**：web profile 禁用了模块级 HMR，修改
