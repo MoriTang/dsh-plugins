@@ -1,0 +1,42 @@
+{
+  "name": "dsh-neubrutalism",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Out-of-tree DeepSeek Harness plugin: neubrutalism theme pack — warm cream + ink-black palette with square corners, hard offset shadows and loud accent pops (light & dark).",
+  "dependencies": {
+    "@deepseek-ai/cordis": "link:../../../deepseek-harness/vendor/cordis",
+    "zod": "link:../../../deepseek-harness/node_modules/.pnpm/node_modules/zod"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "link:../../../deepseek-harness/vendor/cordis",
+    "@deepseek-ai/dsh-client-ui-layout": "link:../../../deepseek-harness/packages/client/ui-layout",
+    "@deepseek-ai/dsh-client-ui-renderer": "link:../../../deepseek-harness/packages/client/ui-renderer",
+    "@deepseek-ai/dsh-client-ui-slots": "link:../../../deepseek-harness/packages/client/ui-slots",
+    "@types/node": "link:../../../deepseek-harness/node_modules/.pnpm/@types+node@26.1.2/node_modules/@types/node",
+    "@types/react": "link:../../../deepseek-harness/node_modules/.pnpm/node_modules/@types/react",
+    "@types/react-dom": "link:../../../deepseek-harness/node_modules/.pnpm/node_modules/@types/react-dom",
+    "react": "link:../../../deepseek-harness/node_modules/.pnpm/node_modules/react",
+    "typescript": "link:../../../deepseek-harness/node_modules/.pnpm/node_modules/typescript"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-slots"
+      ]
+    }
+  }
+}
