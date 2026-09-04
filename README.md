@@ -20,6 +20,7 @@ dsh-plugins/
 │   ├── greet-tool/        # 示例插件：可配置的 greet 工具（新插件的起点模板）
 │   ├── cost-balance/      # 会话消耗金额 + 账户余额实时显示（composer dock）
 │   ├── usage-heatmap/     # 设置页：GitHub 风格每日 token 消耗热力图
+│   ├── neubrutalism-theme/ # 可卸载的 Neubrutalism Web UI 主题
 │   ├── codex-enabler/     # 一键 Codex subagent 接入
 │   └── tool-audit/        # 工具调用审计：耗时/结果/失败/超时（composer dock）
 └── README.md
@@ -60,6 +61,15 @@ dsh-plugins/
 - **持久化**：`$DSH_HOME/usage-heatmap/daily-usage.json`（原子写入）。
 - **测试**：11 个用例覆盖 daily-usage 折叠/归因/替换/持久化不变量（`tests/`）。
 - **文档**：[`plugins/usage-heatmap/README.md`](plugins/usage-heatmap/README.md)
+
+### `neubrutalism-theme` — Neubrutalism Web UI 主题
+
+- **类型**：bundle + browser client
+- **功能**：通过主题 token 与可卸载全局样式，为完整 Web GUI 应用 2px 控件描边、
+  3px 容器描边、方角、零模糊硬阴影、纯色强调面和按钮按压反馈。
+- **字体**：内联 Syne、Space Grotesk、Inter 与 Space Mono 的本地 WOFF2，
+  浏览器运行时不请求外部字体服务。
+- **文档**：[`plugins/neubrutalism-theme/README.md`](plugins/neubrutalism-theme/README.md)
 
 ### `codex-enabler` — Codex Provider 与专用 preset 接入
 

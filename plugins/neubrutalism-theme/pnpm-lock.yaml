@@ -1,0 +1,65 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: link:../../../deepseek-harness/vendor/cordis
+        version: link:../../../deepseek-harness/vendor/cordis
+      '@deepseek-ai/dsh-client-ui-theme':
+        specifier: link:../../../deepseek-harness/packages/client/ui-theme
+        version: link:../../../deepseek-harness/packages/client/ui-theme
+      '@fontsource-variable/inter':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource-variable/space-grotesk':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource-variable/syne':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/space-mono':
+        specifier: 5.3.0
+        version: 5.3.0
+    devDependencies:
+      '@types/node':
+        specifier: link:../../../deepseek-harness/node_modules/.pnpm/@types+node@26.1.2/node_modules/@types/node
+        version: link:../../../deepseek-harness/node_modules/.pnpm/@types+node@26.1.2/node_modules/@types/node
+      esbuild:
+        specifier: link:../../../deepseek-harness/node_modules/.pnpm/esbuild@0.25.12/node_modules/esbuild
+        version: link:../../../deepseek-harness/node_modules/.pnpm/esbuild@0.25.12/node_modules/esbuild
+      tsx:
+        specifier: link:../../../deepseek-harness/node_modules/.pnpm/tsx@4.22.4/node_modules/tsx
+        version: link:../../../deepseek-harness/node_modules/.pnpm/tsx@4.22.4/node_modules/tsx
+      typescript:
+        specifier: link:../../../deepseek-harness/node_modules/.pnpm/typescript@6.0.3/node_modules/typescript
+        version: link:../../../deepseek-harness/node_modules/.pnpm/typescript@6.0.3/node_modules/typescript
+
+packages:
+
+  '@fontsource-variable/inter@5.3.0':
+    resolution: {integrity: sha512-OupL48va4JNofb97w6NYeF9S7W/kHNKM0Er8Dem5nqi4jeOLrVJDoE8tZEpnMJmtkvNbB1EIPPwHcdkF6b1oUA==}
+
+  '@fontsource-variable/space-grotesk@5.3.0':
+    resolution: {integrity: sha512-2IxmvfB08i9vnGB3Ym/AXvhRE+8XOjWMXIyDum03c+tPwH0FUoMNQfGpU8NXPxjbws0Vvss3AH0Zqt4oJBBAdw==}
+
+  '@fontsource-variable/syne@5.3.0':
+    resolution: {integrity: sha512-GUNH65fUfWHQcX7bO0BGgScE465gawpTId45aDfhHcVj/upbb6b+2d++5keKP128vK8+LtE4dvLkKTsxoh7TwA==}
+
+  '@fontsource/space-mono@5.3.0':
+    resolution: {integrity: sha512-FrpBMOVWn3PRdRHlrZWC55X3kZG/2BTH7SM5ZyS/bky3iKya2BturI5lk+t0RoDQL2JyHzURsVq/EisCsxpI5A==}
+
+snapshots:
+
+  '@fontsource-variable/inter@5.3.0': {}
+
+  '@fontsource-variable/space-grotesk@5.3.0': {}
+
+  '@fontsource-variable/syne@5.3.0': {}
+
+  '@fontsource/space-mono@5.3.0': {}

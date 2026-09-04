@@ -1,0 +1,144 @@
+:root {
+  --dsh-neu-outline: #000;
+  --dsh-neu-focus: #74b9ff;
+  --dsh-neu-shadow-sm: 3px 3px 0 0 #000;
+  --dsh-neu-shadow: 5px 5px 0 0 #000;
+  --dsh-neu-shadow-lg: 8px 8px 0 0 #000;
+}
+
+body[data-ds-dark-theme] {
+  --dsh-neu-outline: #ded9cd;
+  --dsh-neu-focus: #ffd23f;
+  --dsh-neu-shadow-sm: 2px 2px 0 0 #000;
+  --dsh-neu-shadow: 5px 5px 0 0 #000;
+  --dsh-neu-shadow-lg: 8px 8px 0 0 #000;
+}
+
+body {
+  --dsw-font-family: 'Inter Variable', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --ds-font-family-code: 'Space Mono', 'SF Mono', Consolas, monospace;
+  background-color: var(--dsw-alias-bg-base);
+  font-family: var(--dsw-font-family);
+  letter-spacing: 0.005em;
+}
+
+body :where(h1, h2) {
+  font-family: 'Syne Variable', 'PingFang SC', sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+}
+
+body :where(h3, h4, h5, h6, button, [role='button'], nav) {
+  font-family: 'Space Grotesk Variable', 'PingFang SC', sans-serif;
+  font-weight: 700;
+}
+
+body :where(code, kbd, samp, pre) {
+  font-family: var(--ds-font-family-code);
+}
+
+body :where(button, input, textarea, select, dialog, [role='dialog'], [role='menu'], [role='listbox']) {
+  border-radius: 0 !important;
+}
+
+body :where(button, input:not([type='checkbox']):not([type='radio']):not([type='range']), textarea, select) {
+  border: 2px solid var(--dsh-neu-outline) !important;
+  box-shadow: var(--dsh-neu-shadow-sm) !important;
+}
+
+body :where(dialog, [role='dialog'], [role='menu'], [role='listbox']) {
+  border: 3px solid var(--dsh-neu-outline) !important;
+  box-shadow: var(--dsh-neu-shadow-lg) !important;
+}
+
+body :where(button:not(:disabled), [role='button']:not([aria-disabled='true'])) {
+  cursor: pointer;
+  transition: box-shadow 100ms ease, transform 100ms ease;
+}
+
+body :where(button:not(:disabled), [role='button']:not([aria-disabled='true'])):hover {
+  box-shadow: 4px 4px 0 0 #000 !important;
+  transform: translate(-1px, -1px);
+}
+
+body[data-ds-dark-theme] :where(button:not(:disabled), [role='button']:not([aria-disabled='true'])):hover {
+  box-shadow: 4px 4px 0 0 #000 !important;
+}
+
+body :where(button:not(:disabled), [role='button']:not([aria-disabled='true'])):active {
+  box-shadow: none !important;
+  transform: translate(2px, 2px);
+}
+
+/* The 28px inline session-search control is clipped by its circular,
+   overflow-hidden shell if the theme adds an outer border or movement. */
+body :where(div:has(> button[aria-expanded] + input[type='text'])) > button[aria-expanded] {
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+body :where(div:has(> button[aria-expanded] + input[type='text'])) > button[aria-expanded]:is(:hover, :active) {
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+body :where(button, input, textarea, select, a, [tabindex]):focus-visible {
+  outline: 3px solid var(--dsh-neu-focus) !important;
+  outline-offset: 3px !important;
+}
+
+body :where(a) {
+  color: var(--dsw-alias-brand-text);
+  font-weight: 700;
+  text-decoration-line: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+body :where(pre, blockquote) {
+  border: 3px solid var(--dsh-neu-outline);
+  border-radius: 0 !important;
+  box-shadow: var(--dsh-neu-shadow);
+}
+
+body :where(blockquote) {
+  background: var(--dsw-specific-tip);
+  margin-inline: 0;
+  padding: 12px 16px;
+}
+
+body :where(hr) {
+  border: 0;
+  border-top: 3px solid var(--dsh-neu-outline);
+}
+
+body :where(table) {
+  border: 3px solid var(--dsh-neu-outline);
+  border-collapse: collapse;
+}
+
+body :where(th, td) {
+  border: 2px solid var(--dsh-neu-outline);
+}
+
+body :where(th) {
+  background: var(--dsw-alias-markdown-code-block-banner);
+  font-family: 'Space Grotesk Variable', 'PingFang SC', sans-serif;
+  font-weight: 700;
+}
+
+body ::selection {
+  background: #ff6b6b;
+  color: #000;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body :where(button, [role='button']) {
+    transition: none !important;
+  }
+
+  body :where(button, [role='button']):hover,
+  body :where(button, [role='button']):active {
+    transform: none !important;
+  }
+}
