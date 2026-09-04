@@ -70,14 +70,36 @@ body :where(button:not(:disabled), [role='button']:not([aria-disabled='true'])):
   transform: translate(2px, 2px);
 }
 
-/* The 28px inline session-search control is clipped by its circular,
-   overflow-hidden shell if the theme adds an outer border or movement. */
-body :where(div:has(> button[aria-expanded] + input[type='text'])) > button[aria-expanded] {
+/* Compact sidebar controls occupy exact 28px/36px clip boxes. Their hover
+   state stays inside that geometry instead of adding an outer shadow. */
+body button[class*='searchButton'],
+body [class*='collapsed'] button,
+body [class*='rail'] button {
   border: 0 !important;
   box-shadow: none !important;
 }
 
-body :where(div:has(> button[aria-expanded] + input[type='text'])) > button[aria-expanded]:is(:hover, :active) {
+body button[class*='searchButton']:is(:hover, :active),
+body [class*='collapsed'] button:is(:hover, :active),
+body [class*='rail'] button:is(:hover, :active) {
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+body button[class*='searchButton']:focus-visible,
+body [class*='collapsed'] button:focus-visible,
+body [class*='rail'] button:focus-visible {
+  outline-offset: -3px !important;
+}
+
+/* Tabs already express selection with a baseline marker; an offset control
+   shadow pushes that marker across the panel divider. */
+body button[role='tab'] {
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+body button[role='tab']:is(:hover, :active) {
   box-shadow: none !important;
   transform: none !important;
 }
