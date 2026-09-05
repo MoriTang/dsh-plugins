@@ -73,6 +73,8 @@ body :where(button:not(:disabled), [role='button']:not([aria-disabled='true'])):
 /* Compact sidebar controls occupy exact 28px/36px clip boxes. Their hover
    state stays inside that geometry instead of adding an outer shadow. */
 body button[class*='searchButton'],
+body [class*='search'] button[class*='clearButton'],
+body [class*='sectionHeader'] button[class*='iconButton'],
 body [class*='collapsed'] button,
 body [class*='rail'] button {
   border: 0 !important;
@@ -80,6 +82,8 @@ body [class*='rail'] button {
 }
 
 body button[class*='searchButton']:is(:hover, :active),
+body [class*='search'] button[class*='clearButton']:is(:hover, :active),
+body [class*='sectionHeader'] button[class*='iconButton']:is(:hover, :active),
 body [class*='collapsed'] button:is(:hover, :active),
 body [class*='rail'] button:is(:hover, :active) {
   box-shadow: none !important;
@@ -87,6 +91,8 @@ body [class*='rail'] button:is(:hover, :active) {
 }
 
 body button[class*='searchButton']:focus-visible,
+body [class*='search'] button[class*='clearButton']:focus-visible,
+body [class*='sectionHeader'] button[class*='iconButton']:focus-visible,
 body [class*='collapsed'] button:focus-visible,
 body [class*='rail'] button:focus-visible {
   outline-offset: -3px !important;
@@ -107,6 +113,15 @@ body button[role='tab']:is(:hover, :active) {
 body :where(button, input, textarea, select, a, [tabindex]):focus-visible {
   outline: 3px solid var(--dsh-neu-focus) !important;
   outline-offset: 3px !important;
+}
+
+/* Search shells own their single visible outline and focus state. */
+body input[class*='searchInput'],
+body input[class*='searchInput']:focus-visible {
+  border: 0 !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+  outline-offset: 0 !important;
 }
 
 body :where(a) {
