@@ -18,7 +18,6 @@ dsh-plugins/
 ├── plugins/
 │   ├── greet-tool/        # 示例插件：可配置的 greet 工具（新插件的起点模板）
 │   ├── cost-balance/      # 会话消耗金额 + 账户余额实时显示（composer dock）
-│   ├── usage-heatmap/     # 设置页：GitHub 风格每日 token 消耗热力图
 │   ├── codex-enabler/     # 一键 Codex subagent 接入
 │   └── tool-audit/        # 工具调用审计：耗时/结果/失败/超时（composer dock）
 └── README.md
@@ -58,7 +57,9 @@ dsh-plugins/
   启动时从持久化 session 日志回填历史；client 经 `/usage-heatmap/history` 轮询。
 - **持久化**：`$DSH_HOME/usage-heatmap/daily-usage.json`（原子写入）。
 - **测试**：11 个用例覆盖 daily-usage 折叠/归因/替换/持久化不变量（`tests/`）。
-- **文档**：[`plugins/usage-heatmap/README.md`](plugins/usage-heatmap/README.md)
+- **独立仓库**：[`MoriTang/dsh-usage-heatmap`](https://github.com/MoriTang/dsh-usage-heatmap)
+- **安装**：clone 独立仓库后运行
+  `pnpm dsh plugin --profile web add /绝对路径/到/dsh-usage-heatmap`。
 
 ### `neubrutalism-theme` — Neubrutalism Web UI 主题
 

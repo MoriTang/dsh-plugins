@@ -22,7 +22,6 @@ dsh-plugins/
 ├── plugins/
 │   ├── greet-tool/        # Example plugin: configurable greet tool (starter template for new plugins)
 │   ├── cost-balance/      # Real-time session cost and account balance display (composer dock)
-│   ├── usage-heatmap/     # Settings page: GitHub-style heatmap of daily token usage
 │   ├── codex-enabler/     # One-click Codex subagent integration
 │   └── tool-audit/        # Tool-call audit: duration/outcome/failure/timeout (composer dock)
 └── README.md
@@ -76,7 +75,9 @@ dsh-plugins/
 - **Persistence**: `$DSH_HOME/usage-heatmap/daily-usage.json` (atomic writes).
 - **Tests**: 11 cases over the daily-usage fold / attribution / replacement /
   persistence invariants (`tests/`).
-- **Documentation**: [`plugins/usage-heatmap/README.md`](plugins/usage-heatmap/README.md)
+- **Standalone repository**: [`MoriTang/dsh-usage-heatmap`](https://github.com/MoriTang/dsh-usage-heatmap)
+- **Install**: Clone the standalone repository, then run
+  `pnpm dsh plugin --profile web add /absolute/path/to/dsh-usage-heatmap`.
 
 ### `neubrutalism-theme` — Neubrutalism Web UI Theme
 
