@@ -1,5 +1,0 @@
-# Install this package as a profile bundle. Its patch mounts the browser-theme
-# host row; package metadata advertises the matching Web client half.
-- insert:
-    - id: neubrutalism-theme
-      name: 'dsh-neubrutalism-theme'

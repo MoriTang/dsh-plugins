@@ -1,16 +1,15 @@
 # dsh-plugins — DeepSeek Harness 外部插件仓库
 
-本仓库存放基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
-开发的**外部（out-of-tree）插件**。插件在 harness 官方仓库之外独立开发和维护，
-通过配置层挂载进运行中的 dsh。
+本仓库是基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
+开发的**外部（out-of-tree）插件目录**。每个已拆分插件在独立 Git 仓库中开发和
+发布；尚未拆分的插件暂时保留在 `plugins/`，完成迁移后本仓库将只保留索引。
 
 ## 背景：为什么是"外部"插件
 
 - DeepSeek Harness 的 `@deepseek-ai/*` 工作区包**不发布到 npm registry**，
   因此外部插件通过 `link:` 协议把依赖指向本机的 harness checkout。
-- 本仓库默认假定 harness checkout 位于同级目录 `../deepseek-harness`
-  （即本仓库所在目录旁的 harness 项目目录），各插件 `package.json` 中的
-  `link:` 相对路径均基于该布局。
+- `plugins/` 中尚未拆分的项目默认假定 harness checkout 位于同级目录
+  `../deepseek-harness`；已拆分项目的开发布局与安装方式由各自仓库说明。
 
 ## 目录结构
 
@@ -20,7 +19,6 @@ dsh-plugins/
 │   ├── greet-tool/        # 示例插件：可配置的 greet 工具（新插件的起点模板）
 │   ├── cost-balance/      # 会话消耗金额 + 账户余额实时显示（composer dock）
 │   ├── usage-heatmap/     # 设置页：GitHub 风格每日 token 消耗热力图
-│   ├── neubrutalism-theme/ # 可卸载的 Neubrutalism Web UI 主题
 │   ├── codex-enabler/     # 一键 Codex subagent 接入
 │   └── tool-audit/        # 工具调用审计：耗时/结果/失败/超时（composer dock）
 └── README.md
@@ -69,7 +67,9 @@ dsh-plugins/
   3px 容器描边、方角、零模糊硬阴影、纯色强调面和按钮按压反馈。
 - **字体**：内联 Syne、Space Grotesk、Inter 与 Space Mono 的本地 WOFF2，
   浏览器运行时不请求外部字体服务。
-- **文档**：[`plugins/neubrutalism-theme/README.md`](plugins/neubrutalism-theme/README.md)
+- **独立仓库**：[`MoriTang/dsh-neubrutalism-theme`](https://github.com/MoriTang/dsh-neubrutalism-theme)
+- **安装**：clone 独立仓库后运行
+  `pnpm dsh plugin --profile web add /绝对路径/到/dsh-neubrutalism-theme`。
 
 ### `codex-enabler` — Codex Provider 与专用 preset 接入
 

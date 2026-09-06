@@ -1,19 +1,19 @@
 # dsh-plugins — External Plugin Repository for DeepSeek Harness
 
-This repository contains **external (out-of-tree) plugins** developed for
-[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). These plugins
-are developed and maintained independently of the official harness repository and
-are mounted into a running dsh instance through the configuration layer.
+This repository is a directory of **external (out-of-tree) plugins** developed
+for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). Each
+extracted plugin is developed and released from its own Git repository. Plugins
+not yet extracted remain under `plugins/`; after migration this repository will
+contain only the index.
 
 ## Background: Why "External" Plugins
 
 - The DeepSeek Harness `@deepseek-ai/*` workspace packages **are not published to
   the npm registry**, so external plugins use the `link:` protocol to point their
   dependencies to a local harness checkout.
-- This repository assumes by default that the harness checkout is located in the
-  sibling directory `../deepseek-harness` (the harness project directory next to
-  this repository). The relative `link:` paths in each plugin's
-  `package.json` are based on this layout.
+- Projects not yet extracted from `plugins/` assume by default that the Harness
+  checkout is located at the sibling path `../deepseek-harness`. Each extracted
+  project documents its own development layout and installation flow.
 
 ## Directory Structure
 
@@ -77,6 +77,18 @@ dsh-plugins/
 - **Tests**: 11 cases over the daily-usage fold / attribution / replacement /
   persistence invariants (`tests/`).
 - **Documentation**: [`plugins/usage-heatmap/README.md`](plugins/usage-heatmap/README.md)
+
+### `neubrutalism-theme` — Neubrutalism Web UI Theme
+
+- **Type**: bundle + browser client
+- **Functionality**: Applies theme tokens and removable global styles across the
+  Web GUI, including 2px control outlines, 3px container outlines, square
+  corners, zero-blur hard shadows, flat accent surfaces, and button press feedback.
+- **Fonts**: Embeds local WOFF2 files for Syne, Space Grotesk, Inter, and Space
+  Mono, with no browser request to an external font service.
+- **Standalone repository**: [`MoriTang/dsh-neubrutalism-theme`](https://github.com/MoriTang/dsh-neubrutalism-theme)
+- **Install**: Clone the standalone repository, then run
+  `pnpm dsh plugin --profile web add /absolute/path/to/dsh-neubrutalism-theme`.
 
 ### `codex-enabler` — Codex Provider Integration with a Dedicated preset
 
