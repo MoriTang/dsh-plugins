@@ -16,7 +16,6 @@
 ```
 dsh-plugins/
 ├── plugins/
-│   ├── greet-tool/        # 示例插件：可配置的 greet 工具（新插件的起点模板）
 │   ├── cost-balance/      # 会话消耗金额 + 账户余额实时显示（composer dock）
 │   ├── codex-enabler/     # 一键 Codex subagent 接入
 │   └── tool-audit/        # 工具调用审计：耗时/结果/失败/超时（composer dock）
@@ -24,14 +23,6 @@ dsh-plugins/
 ```
 
 ## 插件索引
-
-### `greet-tool` — 示例工具插件
-
-- **类型**：host-only · 工具
-- **功能**：注册一个 `greet` 工具，通过 `Config` 配置问候语。
-- **说明**：最小的完整插件范例，是开发新插件时的起点模板。
-- **安装**：patch 层插入行（见[快速开始](#快速开始)），`pnpm install` + 类型检查即可用。
-- **文档**：[`plugins/greet-tool/README.md`](plugins/greet-tool/README.md)
 
 ### `cost-balance` — 会话消耗与余额
 
@@ -103,66 +94,16 @@ dsh-plugins/
 - **测试**：纯核心 + host 集成共 16 个用例（`tests/*.test.ts`）。
 - **文档**：[`plugins/tool-audit/README.md`](plugins/tool-audit/README.md)
 
-## 快速开始
-
-### 1. 安装依赖
-
-每个插件是独立的 pnpm 项目，`@deepseek-ai/*` 依赖通过 `link:` 指向 harness
-checkout：
-
-```sh
-cd plugins/greet-tool
-pnpm install
-```
-
-### 2. 加载插件（两种方式）
-
-**方式 A：热加载（推荐，无需重启）**
-
-把插件行写入 web profile 的用户 patch 层
-（`~/.dsh/profiles/web/cordis.patch.yml`）：
-
-```yaml
-- insert:
-    - id: greet-tool
-      name: '/绝对路径/到/本仓库/plugins/greet-tool/src/index.ts'
-      config:
-        greeting: 'Hello'
-```
-
-`dsh web` 运行期间该文件被 config-only HMR 监听，**保存即生效**，插件立即
-挂载，无需重启服务。修改 `config` 值同样实时生效；删除该行则卸载插件。
-
-**方式 B：启动时通过 `--patch` overlay 加载**
-
-```sh
-cd /绝对路径/到/deepseek-harness
-pnpm dsh web --patch /绝对路径/到/本仓库/plugins/greet-tool/cordis.yml
-```
-
-> **注意**：`--patch` overlay 只在启动时解析一次，运行中编辑它**不会**触发
-> 热重载；热加载请使用方式 A 的 `cordis.patch.yml` 层。
-
-### 3. 验证
-
-在 Web UI（`http://127.0.0.1:3080`）让模型调用 `greet` 工具，例如：
-
-> Use the greet tool to greet Ada.
-
-模型应收到工具结果 `Hello, Ada!`。
-
 ## 开发新插件
 
-1. 复制 `plugins/greet-tool` 作为起点模板。
-2. 插件模块形态（`name` / `inject` / `apply`）、Schemastery `Config` schema、
+1. 插件模块形态（`name` / `inject` / `apply`）、Schemastery `Config` schema、
    `ctx.tools` 注册均遵循官方教程：
    - [构建工具插件](https://deepseek-harness.github.io/docs/user/develop/basic/tool)
    - [插件配置](https://deepseek-harness.github.io/docs/user/develop/basic/config)
    - [工具编写参考](https://deepseek-harness.github.io/docs/cookbook/adding-a-tool)
-3. 类型检查：
+2. 在插件项目中执行类型检查：
 
 ```sh
-cd plugins/<your-plugin>
 pnpm exec tsc --noEmit
 ```
 
@@ -173,9 +114,5 @@ pnpm exec tsc --noEmit
   Harness home 的用户 patch 会热重载；已安装 bundle 自带的 patch 修改后需重启。
 - **GUI 无法开关插件**：Web UI 的 Plugins 设置页只渲染已注册插件的配置卡片，
   没有运行时启用/停用操作。
-- **加载方式分两类**：直接以 patch 引用源码的插件（如 `greet-tool`）的
-  `name` 需是**绝对路径**（patch 不改变模块解析基准目录），换机器需调整；
-  以**包名**挂载的插件（`cost-balance`、`usage-heatmap`、`tool-audit`）需要
-  先把插件目录 `link:` 进 profile 的 `package.json` 依赖并 `pnpm install`，
-  再在 `cordis.patch.yml` 里用包名插入行；bundle 插件（`codex-enabler`）
-  通过 `dsh plugin add` 安装、`cordis.patch.yml` 覆盖配置。
+- **加载方式取决于插件封装**：包插件安装后按包名挂载；`codex-enabler`
+  等 bundle 插件通过 `dsh plugin add` 安装，并在 `cordis.patch.yml` 中覆盖配置。

@@ -22,7 +22,6 @@ contain only the index.
 ```
 dsh-plugins/
 ├── plugins/
-│   ├── greet-tool/        # Example plugin: configurable greet tool (starter template for new plugins)
 │   ├── cost-balance/      # Real-time session cost and account balance display (composer dock)
 │   ├── codex-enabler/     # One-click Codex subagent integration
 │   └── tool-audit/        # Tool-call audit: duration/outcome/failure/timeout (composer dock)
@@ -30,18 +29,6 @@ dsh-plugins/
 ```
 
 ## Plugin Index
-
-### `greet-tool` — Example Tool Plugin
-
-- **Type**: host-only · tool
-- **Functionality**: Registers a `greet` tool with a greeting configurable through
-  `Config`.
-- **Description**: A minimal, complete plugin example and a starter template for
-  developing new plugins.
-- **Installation**: Insert an entry in the patch layer (see
-  [Quick Start](#quick-start)); it is ready to use after `pnpm install` and type
-  checking.
-- **Documentation**: [`plugins/greet-tool/README.md`](plugins/greet-tool/README.md)
 
 ### `cost-balance` — Session Cost and Balance
 
@@ -129,71 +116,17 @@ dsh-plugins/
   (`tests/*.test.ts`).
 - **Documentation**: [`plugins/tool-audit/README.md`](plugins/tool-audit/README.md)
 
-## Quick Start
-
-### 1. Install Dependencies
-
-Each plugin is an independent pnpm project. Its `@deepseek-ai/*` dependencies use
-`link:` to point to the harness checkout:
-
-```sh
-cd plugins/greet-tool
-pnpm install
-```
-
-### 2. Load a Plugin (Two Methods)
-
-**Method A: Hot Loading (Recommended; No Restart Required)**
-
-Add the plugin entry to the web profile's user patch layer
-(`~/.dsh/profiles/web/cordis.patch.yml`):
-
-```yaml
-- insert:
-    - id: greet-tool
-      name: '/path/to/this/repo/plugins/greet-tool/src/index.ts'
-      config:
-        greeting: 'Hello'
-```
-
-While `dsh web` is running, this file is monitored by config-only HMR. **Changes
-take effect as soon as the file is saved**: the plugin is mounted immediately,
-with no service restart required. Changes to `config` values also take effect in
-real time; removing the entry unloads the plugin.
-
-**Method B: Load at Startup Using a `--patch` overlay**
-
-```sh
-cd /path/to/deepseek-harness
-pnpm dsh web --patch /path/to/this/repo/plugins/greet-tool/cordis.yml
-```
-
-> **Note**: A `--patch` overlay is parsed only once at startup. Editing it while
-> the application is running **does not** trigger hot reloading. For hot loading,
-> use the `cordis.patch.yml` layer described in Method A.
-
-### 3. Verify the Plugin
-
-In the Web UI (`http://127.0.0.1:3080`), ask the model to invoke the `greet` tool,
-for example:
-
-> Use the greet tool to greet Ada.
-
-The model should receive the tool result `Hello, Ada!`.
-
 ## Developing a New Plugin
 
-1. Copy `plugins/greet-tool` as the starter template.
-2. Follow the official tutorials for the plugin module structure (`name` /
+1. Follow the official tutorials for the plugin module structure (`name` /
    `inject` / `apply`), the Schemastery `Config` schema, and `ctx.tools`
    registration:
    - [Building a Tool Plugin](https://deepseek-harness.github.io/docs/user/develop/basic/tool)
    - [Plugin Configuration](https://deepseek-harness.github.io/docs/user/develop/basic/config)
    - [Tool Development Reference](https://deepseek-harness.github.io/docs/cookbook/adding-a-tool)
-3. Run a type check:
+2. Run a type check from the plugin project:
 
 ```sh
-cd plugins/<your-plugin>
 pnpm exec tsc --noEmit
 ```
 
@@ -207,9 +140,7 @@ pnpm exec tsc --noEmit
 - **Plugins cannot be enabled or disabled from the GUI**: The Plugins settings
   page in the Web UI only renders configuration cards for registered plugins and
   provides no runtime enable/disable controls.
-- **There are two loading methods**: For source plugins (`greet-tool`,
-  `cost-balance`, and `usage-heatmap`), `name` in the patch layer must be an
-  **absolute path** (a patch does not change the module resolution base
-  directory), so it must be updated when moving to another machine; bundle plugins
-  (`codex-enabler`) are mounted by **package name**, installed through
-  `dsh plugin add`, and configured through overrides in `cordis.patch.yml`.
+- **Loading depends on plugin packaging**: Package plugins are mounted by package
+  name after installation; bundle plugins such as `codex-enabler` are installed
+  through `dsh plugin add` and configured through overrides in
+  `cordis.patch.yml`.
