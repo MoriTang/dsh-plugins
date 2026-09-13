@@ -17,8 +17,7 @@
 dsh-plugins/
 ├── plugins/
 │   ├── cost-balance/      # 会话消耗金额 + 账户余额实时显示（composer dock）
-│   ├── codex-enabler/     # 一键 Codex subagent 接入
-│   └── tool-audit/        # 工具调用审计：耗时/结果/失败/超时（composer dock）
+│   └── codex-enabler/     # 一键 Codex subagent 接入
 └── README.md
 ```
 
@@ -78,21 +77,6 @@ dsh-plugins/
 - **使用**：重启 profile 后，为新会话选择 `standard-codex`；既有会话的
   preset 与工具集不变。
 - **文档**：[`plugins/codex-enabler/README.md`](plugins/codex-enabler/README.md)
-
-### `tool-audit` — 工具调用审计（耗时/结果/失败/超时）
-
-- **类型**：双半插件（host + client）
-- **功能**：
-  - **调用账本**：记录每次模型工具调用的耗时、结算结果（成功/失败/中止/
-    超时）、慢调用标记，composer dock 实时滚动展示
-  - **失败/超时可见**：红 = 失败、灰 = 中止、琥珀 = 超时/慢调用，悬停看
-    callId 与 error code
-  - **可选兜底中止**：`abortAfterMs` 配置后，仅对未声明自身 `timeoutMs`
-    预算的工具兜底中止（默认关闭，不重复官方 timeout 策略）
-- **数据通道**：host 在 `tools/execute` 计时、`tools/result` 提交权威结算
-  到内存账本，client 轮询 `/tool-audit/recent`（按 session 过滤）。
-- **测试**：纯核心 + host 集成共 16 个用例（`tests/*.test.ts`）。
-- **文档**：[`plugins/tool-audit/README.md`](plugins/tool-audit/README.md)
 
 ## 开发新插件
 
